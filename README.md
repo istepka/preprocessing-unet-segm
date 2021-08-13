@@ -1,3 +1,7 @@
+# Lesion skin cancer segmentation
+### Based on the ISIC 2018 challenge which goal was to create automated predictions of lesion segmentation boundaries within dermoscopic images.
+![img](src\overview_readme.png)
+***
 ## Image Pre-Processing
 ### Challenges:
 * vignette
@@ -38,12 +42,12 @@
 ***
 ## Image segmentation  
 Segmentation will be performed using U-Net Convolutional Neural Network.
-## Loss functions to be examined
+### Loss functions to be examined
 * Tversky 
 * Dice coefficent 
 * Jaccard  
 
-## Parameters  
+### Parameters  
 `[TBD]`  
 
 
