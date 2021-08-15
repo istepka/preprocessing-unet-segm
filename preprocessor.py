@@ -1,3 +1,4 @@
+from typing import Tuple
 from PIL import Image, ImageOps
 
 
@@ -7,7 +8,7 @@ class Preprocessor:
     def __init__(self, img: Image) -> None:
         self.img = img
 
-    def resize(self, target_resolution: tuple(int, int) =(512,512)) -> None:
+    def resize(self, target_resolution: tuple[int, int] = (512,512)) -> None:
         '''Resize image to target resolution'''
         self.img = self.img.resize(target_resolution)
 
