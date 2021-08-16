@@ -1,6 +1,6 @@
 # Lesion skin cancer segmentation
 ### Based on the ISIC 2018 challenge which goal was to create automated predictions of lesion segmentation boundaries within dermoscopic images.
-![img](src\overview_readme.png)
+![img](src/overview_readme.png)
 ***
 ## Image Pre-Processing
 ### Challenges:
@@ -27,6 +27,7 @@
     This ensures images have consistent contrast between neighbouring areas and RoI. It will be accomplished by first calculating the histogram of grayscale image. The top 2% of histogram intensities were then selected and used as cut off values. Histogram then stretches to remap the darkest pixel to 0 and lightest to 255 against the selected cut off thresholds.  
 1. Hair removal  
     Hairs are identified using an edge detection from PIL with a FIND_EDGES method with 1-pixel silhouette.  
+    DullRazor?
     `[NEED MORE RESEARCH]`  
 1. Remove the vignette frame  
     Pseudocode for removal algorithm  
