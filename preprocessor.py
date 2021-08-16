@@ -1,6 +1,6 @@
 from PIL import Image, ImageFilter, ImageOps, ImageStat
 import numpy as np
-import sys
+import sys, os
 
 
 class Preprocessor:
@@ -59,9 +59,9 @@ class Preprocessor:
         width = source_image.size[1]
         center = (width/2, height/2)
 
-        for iteration in range(10):
-            print(f"Iteration: {iteration}", file=sys.stderr, flush=True)
-            radius = height / 3 - 20 + iteration * 5
+        for iteration in range(22):
+            #print(f"Iteration: {iteration}", file=sys.stderr, flush=True)
+            radius = height / 3 - 20 + iteration * 15
 
             #Create circular mask
             Y, X = np.ogrid[:width, :height]
@@ -75,10 +75,11 @@ class Preprocessor:
             #Get mean pixel values of inner and outer circle
             mean_inner = ImageStat.Stat(source_image, mask=im_mask).mean[0]
             mean_outer = ImageStat.Stat(source_image, mask=ImageOps.invert(im_mask)).mean[0]
-            print(f'inner: {mean_inner} \nouter:{mean_outer}\n-------', file=sys.stderr, flush=True)
+            
 
             #Check if vignette effect is in the image
-            if mean_outer < 6.0:
+            if mean_outer < 30.0:
+                print(f'inner: {mean_inner} \nouter:{mean_outer}\n-------')
                 inner_fill = np.full((width, height), int(mean_inner))
                 inner_fill = Image.fromarray(inner_fill).convert('L')
 
@@ -90,6 +91,8 @@ class Preprocessor:
     
 
     def save(self, name: str, path: str="./data/temp/") -> None:
+        if not os.path.exists(path):
+            os.makedirs(path)
         self.img.save(path + name)
 
 
