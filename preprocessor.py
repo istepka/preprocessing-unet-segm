@@ -90,7 +90,7 @@ class Preprocessor:
                 break 
     
 
-    def save(self, name: str, path: str="./data/temp/") -> None:
+    def save(self, name: str, path: str="./src/data/temp/") -> None:
         if not os.path.exists(path):
             os.makedirs(path)
         self.img.save(path + name)

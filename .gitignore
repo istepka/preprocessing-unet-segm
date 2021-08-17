@@ -1,4 +1,9 @@
-data/
+src/data/
 .vscode/
 test.py
 __pycache__/
+unet-tf-implementation/
+tf_segmentation.ipynb
+temp/
+*ISIC*
+*test*

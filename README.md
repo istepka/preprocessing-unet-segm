@@ -42,7 +42,8 @@
 
 ***
 ## Image segmentation  
-Segmentation will be performed using U-Net Convolutional Neural Network.
+Segmentation will be performed using U-Net Convolutional Neural Network. 
+
 ### Loss functions to be examined
 * Tversky 
 * Dice coefficent 
@@ -54,12 +55,14 @@ Segmentation will be performed using U-Net Convolutional Neural Network.
 
 ***
 ## References  
-Sara Ross-Howe, H.R. Tizhoosh - "The Effects of Image Pre- and Post-Processing, Wavelet Decomposition, and Local Binary Patterns on U-Nets for Skin Lesion Segmentation" - Kimia Lab, University of Waterloo, Waterloo, Ontario, Canada  
+1. Ronneberger O., Fischer P., Brox T. (2015) U-Net: Convolutional Networks for Biomedical Image Segmentation. In: Navab N., Hornegger J., Wells W., Frangi A. (eds) Medical Image Computing and Computer-Assisted Intervention – MICCAI 2015. MICCAI 2015. Lecture Notes in Computer Science, vol 9351. Springer, Cham. https://doi.org/10.1007/978-3-319-24574-4_28
+  
+1. Sara Ross-Howe, H.R. Tizhoosh - "The Effects of Image Pre- and Post-Processing, Wavelet Decomposition, and Local Binary Patterns on U-Nets for Skin Lesion Segmentation" - Kimia Lab, University of Waterloo, Waterloo, Ontario, Canada  
 
-Tschandl, P. et al. The HAM10000 dataset, a large collection of multi-source
+1. Tschandl, P. et al. The HAM10000 dataset, a large collection of multi-source
 dermatoscopic images of common pigmented skin lesions. Sci. Data 5:180161 doi: 10.1038/sdata.2018.161 (2018).  
 
-Nabila Abraham, Naimul Mefraz Khan - "A NOVEL FOCAL TVERSKY LOSS FUNCTION WITH IMPROVED ATTENTION U-NET FOR LESION SEGMENTATION" - Ryerson University Department of Electrical and Computer Engineering 350 Victoria Street, Toronto, ON  
+1. Nabila Abraham, Naimul Mefraz Khan - "A NOVEL FOCAL TVERSKY LOSS FUNCTION WITH IMPROVED ATTENTION U-NET FOR LESION SEGMENTATION" - Ryerson University Department of Electrical and Computer Engineering 350 Victoria Street, Toronto, ON  
 
-https://challenge2018.isic-archive.com/participate/
+1. https://challenge2018.isic-archive.com/participate/
 
