@@ -36,20 +36,27 @@ class Trainer:
         self.train_data = (train_img, train_msk)
         self.validation_data = (test_img, test_msk)
 
+        print('Data loaded.')
+
     def build_model(self) -> str:
         self.model = UNet()
         self.model.compile(optimizer='adam', loss=jaccard_distance, metrics=['acc'])
         
+        print('Model built.')
         return self.model.summary()
 
     def train(self) -> None:
         train_x = self.train_data[0]
         train_y = self.train_data[1]
-        self.model.fit(x=train_x, y=train_y, batch_size=BATCH_SIZE , epochs=2, validation_data=self.validation_data)
+        self.model.fit(x=train_x, y=train_y, batch_size=BATCH_SIZE , epochs=EPOCHS, validation_data=self.validation_data)
 
     def save(self) -> None:
-        timestamp = date.today().strftime(r"%d%m%y-%h%m")
-        self.model.save_weights(f'{TRAIN_PATH}UNet_model_{timestamp}.h5')
+        timestamp = date.today().strftime(r'%d%m%y%H%M')
+        path = f'{TRAIN_PATH}UNet_model_{timestamp}.h5'
+        self.model.save_weights(path)
+
+        print('Model weights saved:' + path)
+
 
 
 def down_block(x, filters, kernel_size=(3,3), padding="same", strides=1):
@@ -97,7 +104,17 @@ def UNet():
     ups_3 = up_block(ups_2, conv_2, feature_maps[1]) #128 -> 256
     ups_4 = up_block(ups_3, conv_1, feature_maps[0]) #256 -> 512
 
-    outputs = keras.layers.Conv2D(1, (1,1), padding='same', activation='softmax')(ups_4)
+    outputs = keras.layers.Conv2D(1, (1,1), padding='same', activation='sigmoid')(ups_4)
 
     model = keras.models.Model(inputs, outputs)
     return model
+
+
+
+if __name__ == '__main__':
+    tr = Trainer()
+    tr.load_data()
+    tr.build_model()
+    tr.train()
+    tr.save()
+
