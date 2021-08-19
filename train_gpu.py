@@ -5,7 +5,7 @@ from data_loader import DataLoader
 import random
 import matplotlib.pyplot as plt
 import utils
-from datetime import date, time
+import time
 #SEEDS
 random.seed(1)
 np.random.seed(1)
@@ -13,10 +13,12 @@ tf.random.set_seed(1)
 
 
 #HYPERPARAMETERS
-IMAGE_SIZE = 512
+IMAGE_SIZE = 128
 TRAIN_PATH = 'src/models/'
 EPOCHS = 5
 BATCH_SIZE = 2
+DATASET_SIZE = 200 #Number of datapoints 
+FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
 
 
 class Trainer:
@@ -28,7 +30,7 @@ class Trainer:
 
 
     def load_data(self) -> None:
-        raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE)
+        raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE, n=DATASET_SIZE)
         norm_images, norm_masks = utils.normalize(raw_images, raw_masks)
 
         train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks)
@@ -59,11 +61,11 @@ class Trainer:
         self.model.fit(x=train_x, y=train_y, batch_size=BATCH_SIZE , epochs=EPOCHS, validation_data=(validation_x, validation_y),  )
 
     def save(self) -> None:
-        timestamp = date.today().strftime(r'%d%m%y:%H%M')
-        path = f'{TRAIN_PATH}UNet_model_{timestamp}.h5'
+        timestamp = time.strftime(r"%d%m%Y-%H%M%S")
+        path = f'{TRAIN_PATH}UNet_model_{IMAGE_SIZE}x{IMAGE_SIZE}_{timestamp}.h5'
         self.model.save_weights(path)
 
-        print('Model weights saved:' + path)
+        print('Model weights saved: ' + path)
 
 
 
@@ -100,7 +102,7 @@ def jaccard_distance(y_true, y_pred, smooth=100):
     return (1 - jac)
 
 def UNet():
-    feature_maps = [32,64,128,256,512] #[64,128,256, 512, 1024]
+    feature_maps = FEATURE_CHANNELS  #[64,128,256, 512, 1024]
     inputs = keras.layers.Input( (IMAGE_SIZE, IMAGE_SIZE, 1) )
 
     pool_0 = inputs

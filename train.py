@@ -88,7 +88,7 @@ def jaccard_distance(y_true, y_pred, smooth=100):
     return (1 - jac)
 
 def UNet():
-    feature_maps = [64,128,256, 512, 1024]
+    feature_maps = [32, 64,128,256, 512]
     inputs = keras.layers.Input( (IMAGE_SIZE, IMAGE_SIZE, 1) )
 
     pool_0 = inputs

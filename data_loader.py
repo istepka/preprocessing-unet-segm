@@ -10,10 +10,11 @@ class DataLoader:
         self.masks = list()
         
 
-    def get_dataset(self, resolution=512):
-        source_path_img = './src/dataset_preview/raw_img/'
-        source_path_mask = './src/dataset_preview/raw_masks/'
-        filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))
+    def get_dataset(self, resolution=512, n=100):
+        source_path_img = './src/data/raw_img/'
+        source_path_mask = './src/data/raw_masks/'
+
+        filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))[0:n+1]
 
        
 
