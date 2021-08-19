@@ -6,6 +6,9 @@ import random
 import matplotlib.pyplot as plt
 import utils
 import time
+import mlflow
+
+
 #SEEDS
 random.seed(1)
 np.random.seed(1)
@@ -13,11 +16,11 @@ tf.random.set_seed(1)
 
 
 #HYPERPARAMETERS
-IMAGE_SIZE = 128
+IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 5
-BATCH_SIZE = 2
-DATASET_SIZE = 200 #Number of datapoints 
+EPOCHS = 16
+BATCH_SIZE = 8
+DATASET_SIZE = 300 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
 
 
@@ -27,6 +30,8 @@ class Trainer:
         self.train_data = tuple()
         self.validation_data = tuple()
         self.model = None
+
+        mlflow.tensorflow.autolog()
 
 
     def load_data(self) -> None:

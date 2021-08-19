@@ -1,2 +1,1 @@
-unet_workspace.ipynb linguist-vendored=false
-preprocessing/preproc_walkthrough.ipynb linguist-vendored=false
+*.ipynb linguist-documentation
