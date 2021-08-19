@@ -18,8 +18,8 @@ class DataLoader:
        
 
         for _, name in enumerate(filenames):
-            image = Image.open(source_path_img + name + '.jpg').convert(mode='L').resize((512,512))
-            mask = Image.open(source_path_mask + name + '_segmentation.png').convert(mode='L').resize((512,512))
+            image = Image.open(source_path_img + name + '.jpg').convert(mode='L').resize((resolution,resolution))
+            mask = Image.open(source_path_mask + name + '_segmentation.png').convert(mode='L').resize((resolution,resolution))
 
             image = np.asarray(image.getdata()).reshape(image.size[1], image.size[0], -1) 
             mask = np.asarray(mask.getdata()).reshape(mask.size[1], mask.size[0], -1)

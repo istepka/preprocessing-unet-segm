@@ -6,11 +6,13 @@ import numpy as np
 
 
 
+
+
 def predict(image):
     trainer = train.Trainer()
     trainer.build_model()
 
-    trainer.model.load_weights('src/trained/UNet_model_180821-Aug08.h5')
+    trainer.model.load_weights('src/models/UNet_model_180821-Aug08.h5')
 
     result = trainer.model.predict(image)
 
@@ -22,7 +24,7 @@ def predict_showcase():
     trainer.load_data()
     trainer.build_model()
 
-    trainer.model.load_weights('src/trained/UNet_model_180821-Aug08.h5')
+    trainer.model.load_weights('src/models/UNet_model_190821:0000.h5')
 
     result = trainer.model.predict(trainer.validation_data[0])
 
