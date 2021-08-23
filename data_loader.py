@@ -18,7 +18,7 @@ class DataLoader:
 
        
 
-        for _, name in enumerate(filenames):
+        for i, name in enumerate(filenames):
             image = Image.open(source_path_img + name + '.jpg').convert(mode='L').resize((resolution,resolution))
             mask = Image.open(source_path_mask + name + '_segmentation.png').convert(mode='L').resize((resolution,resolution))
 
@@ -30,6 +30,8 @@ class DataLoader:
             self.images.append(image)
             self.masks.append(mask)
 
+            if i % 100 == 0:
+                print(f'Loaded {i+1} images.')
 
         
       

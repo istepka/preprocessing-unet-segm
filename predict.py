@@ -24,7 +24,7 @@ def predict_showcase():
     trainer.load_data()
     trainer.build_model()
 
-    trainer.model.load_weights('src/models/UNet_model_190821:0000.h5')
+    trainer.model.load_weights('src/models/UNet_model_256x256_23082021-123051.h5')
 
     result = trainer.model.predict(trainer.validation_data[0])
 

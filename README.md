@@ -44,14 +44,15 @@
 ## Image segmentation  
 Segmentation will be performed using U-Net Convolutional Neural Network. 
 
-### Loss functions to be examined
-* Tversky 
-* Dice coefficent 
-* Jaccard  
-
-### Parameters  
-`[TBD]`  
-
+### Best result yet is ACC ~ 93.1% and AuC ~ 94.3%
+With parameters:
+- image size: 512x512
+- batch size: 8
+- epochs: 16
+- dataset samples: 2000
+- feature channels configuration: [32,64,128,256,512]
+- optimizer: adam
+- loss: binary_crossentropy
 
 ***
 ## References  

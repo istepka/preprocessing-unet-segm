@@ -1,3 +1,4 @@
+from data_generator import DataGenerator
 import numpy as np
 import tensorflow as tf 
 from tensorflow import keras
@@ -7,6 +8,7 @@ import matplotlib.pyplot as plt
 import utils
 import time
 import mlflow
+from data_generator import DataGenerator
 
 
 #SEEDS
@@ -18,9 +20,9 @@ tf.random.set_seed(1)
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 16
-BATCH_SIZE = 8
-DATASET_SIZE = 300 #Number of datapoints 
+EPOCHS = 20
+BATCH_SIZE = 32
+DATASET_SIZE = 2000 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
 
 
@@ -32,10 +34,12 @@ class Trainer:
         self.model = None
 
         mlflow.tensorflow.autolog()
+        mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
+        mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
 
 
-    def load_data(self) -> None:
-        raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE, n=DATASET_SIZE)
+    def load_data(self, n=DATASET_SIZE) -> None:
+        raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE, n=n)
         norm_images, norm_masks = utils.normalize(raw_images, raw_masks)
 
         train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks)
@@ -50,7 +54,14 @@ class Trainer:
 
         #optimizer = tf.keras.optimizers.Adam(learning_rate=0.3)
 
-        self.model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['acc'])
+        self.model.compile(
+            optimizer='adam', 
+            loss='binary_crossentropy', 
+            metrics=[
+                'acc',
+                tf.keras.metrics.AUC()
+                ]
+            )
         #self.model.compile(optimizer=optimizer, loss=jaccard_distance, metrics=['acc'])
         
         print('Model built.')
@@ -63,7 +74,28 @@ class Trainer:
             validation_x = tf.convert_to_tensor(self.validation_data[0], dtype=tf.float32) 
             validation_y = tf.convert_to_tensor(self.validation_data[1], dtype=tf.float32) 
 
-        self.model.fit(x=train_x, y=train_y, batch_size=BATCH_SIZE , epochs=EPOCHS, validation_data=(validation_x, validation_y),  )
+        self.model.fit(
+        x=train_x, 
+        y=train_y, 
+        batch_size=BATCH_SIZE , 
+        epochs=EPOCHS, 
+        validation_data=(validation_x, validation_y)
+        )
+        
+        # -------- Traing with Generator (slower) -------------
+        # train_generator = DataGenerator('train', batch_size=BATCH_SIZE)
+        # validation_generator = DataGenerator('validation', batch_size=BATCH_SIZE)
+
+        # self.model.fit(
+        #     x=train_generator,
+        #     validation_data=validation_generator,
+        #     epochs=EPOCHS,
+        #     use_multiprocessing=True,
+        #     workers=6
+        # )
+        #------------------------------------------------------
+
+      
 
     def save(self) -> None:
         timestamp = time.strftime(r"%d%m%Y-%H%M%S")
