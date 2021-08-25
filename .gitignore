@@ -10,3 +10,4 @@ temp/
 unused/
 *.h5*
 mlruns/
+*.txt

@@ -1,6 +1,9 @@
+from typing import Tuple
 from PIL import Image
 import os
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator 
 
 
 class DataLoader:
@@ -38,7 +41,65 @@ class DataLoader:
         return np.array(self.images), np.array(self.masks)
         
 
+    def tf_get_generators(self, resolution=256, batch_size=16) -> Tuple[ImageDataGenerator, ImageDataGenerator, ImageDataGenerator, ImageDataGenerator]:
+        
+        data_gen_args = dict(rescale=1./255) 
+        seed=1
+
+        image_datagen = ImageDataGenerator(**data_gen_args)
+        mask_datagen = ImageDataGenerator(**data_gen_args)
+        valid_datagen = ImageDataGenerator(**data_gen_args)
+        valid_mask_datagen = ImageDataGenerator(**data_gen_args)
+
+
+        image_generator = image_datagen.flow_from_directory(
+            './src/data/raw_img',
+            target_size=(resolution, resolution),
+            color_mode='grayscale',
+            seed=seed,
+            class_mode=None,
+            batch_size=batch_size,
+            shuffle=True
+        )
+
+        mask_generator = mask_datagen.flow_from_directory(
+            'src/data/raw_masks',
+            target_size=(resolution, resolution),
+            color_mode='grayscale',
+            seed=seed,
+            class_mode=None,
+            batch_size=batch_size,
+            shuffle=True
+        )
+
+        valid_generator = valid_datagen.flow_from_directory(
+            'src/data/raw_masks',
+            target_size=(resolution, resolution),
+            color_mode='grayscale',
+            seed=seed,
+            class_mode=None,
+            batch_size=batch_size,
+            shuffle=True
+        )
+
+        valid_mask_generator = valid_mask_datagen.flow_from_directory(
+            'src/data/raw_masks',
+            target_size=(resolution, resolution),
+            color_mode='grayscale',
+            seed=seed,
+            class_mode=None,
+            batch_size=batch_size,
+            shuffle=True
+        )
+
+        return image_generator, mask_generator, valid_generator, valid_mask_generator
+        
+
+
+
+
+
 if __name__ == "__main__":
-    x,y = DataLoader().get_dataset()
-    x = x/255
-    print(x[0])
+    x,y,z = DataLoader().tf_get_generators()
+    print(len(x))
+  

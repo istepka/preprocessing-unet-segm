@@ -9,7 +9,7 @@ import utils
 import time
 import mlflow
 from data_generator import DataGenerator
-
+from sklearn.metrics import roc_auc_score
 
 #SEEDS
 random.seed(1)
@@ -20,10 +20,11 @@ tf.random.set_seed(1)
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 20
-BATCH_SIZE = 32
-DATASET_SIZE = 2000 #Number of datapoints 
+EPOCHS = 4
+BATCH_SIZE = 8
+DATASET_SIZE = 2500 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
+DATA_AUGUMENTATION = None
 
 
 class Trainer:
@@ -36,6 +37,7 @@ class Trainer:
         mlflow.tensorflow.autolog()
         mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
         mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
+        mlflow.log_param('DATA_AUGUMENTATION', DATA_AUGUMENTATION)
 
 
     def load_data(self, n=DATASET_SIZE) -> None:
@@ -52,39 +54,52 @@ class Trainer:
     def build_model(self) -> str:
         self.model = UNet()
 
-        #optimizer = tf.keras.optimizers.Adam(learning_rate=0.3)
+        optimizer = tf.keras.optimizers.Adam()
 
         self.model.compile(
-            optimizer='adam', 
+            optimizer=optimizer, 
             loss='binary_crossentropy', 
             metrics=[
                 'acc',
-                tf.keras.metrics.AUC()
+                tf.keras.metrics.AUC(),
+                #auroc
                 ]
             )
-        #self.model.compile(optimizer=optimizer, loss=jaccard_distance, metrics=['acc'])
         
         print('Model built.')
         return self.model.summary()
 
     def train(self) -> None:
-        with tf.device('/device:GPU:0'):
-            train_x =  tf.convert_to_tensor(self.train_data[0], dtype=tf.float32)
-            train_y = tf.convert_to_tensor(self.train_data[1], dtype=tf.float32)
-            validation_x = tf.convert_to_tensor(self.validation_data[0], dtype=tf.float32) 
-            validation_y = tf.convert_to_tensor(self.validation_data[1], dtype=tf.float32) 
+        #---------Train from directory --------------------------------------------------------------
+        # with tf.device('/device:GPU:0'):
+        #     train_x =  tf.convert_to_tensor(self.train_data[0], dtype=tf.float32)
+        #     train_y = tf.convert_to_tensor(self.train_data[1], dtype=tf.float32)
+        #     validation_x = tf.convert_to_tensor(self.validation_data[0], dtype=tf.float32) 
+        #     validation_y = tf.convert_to_tensor(self.validation_data[1], dtype=tf.float32) 
 
-        self.model.fit(
-        x=train_x, 
-        y=train_y, 
-        batch_size=BATCH_SIZE , 
-        epochs=EPOCHS, 
-        validation_data=(validation_x, validation_y)
-        )
-        
-        # -------- Traing with Generator (slower) -------------
-        # train_generator = DataGenerator('train', batch_size=BATCH_SIZE)
-        # validation_generator = DataGenerator('validation', batch_size=BATCH_SIZE)
+        # self.model.fit(
+        # x=train_x, 
+        # y=train_y, 
+        # batch_size=BATCH_SIZE , 
+        # epochs=EPOCHS, 
+        # validation_data=(validation_x, validation_y)
+        # )
+        #--------------------------------------------------------------------------------------------
+        with tf.device('/device:GPU:0'):
+            image_generator, mask_generator, valid_generator, valid_mask_generator = DataLoader().tf_get_generators(resolution=IMAGE_SIZE,batch_size=BATCH_SIZE)
+
+            self.model.fit(
+                x = zip(image_generator, mask_generator),
+                epochs=EPOCHS,
+                steps_per_epoch= len(image_generator),
+                validation_data= zip(valid_generator, valid_mask_generator),
+                validation_steps=len(valid_generator)
+            )
+
+
+        # -------- Traing with Generator (slower -> to be fixed) ------------------------------------
+        # train_generator = DataGenerator('train', batch_size=BATCH_SIZE)                           
+        # validation_generator = DataGenerator('validation', batch_size=BATCH_SIZE)                 
 
         # self.model.fit(
         #     x=train_generator,
@@ -93,7 +108,7 @@ class Trainer:
         #     use_multiprocessing=True,
         #     workers=6
         # )
-        #------------------------------------------------------
+        #--------------------------------------------------------------------------------------------
 
       
 
@@ -104,7 +119,8 @@ class Trainer:
 
         print('Model weights saved: ' + path)
 
-
+def auroc(y_true, y_pred):
+    return tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
 
 def down_block(x, filters, kernel_size=(3,3), padding="same", strides=1):
     with tf.device('/device:GPU:0'):
@@ -164,7 +180,7 @@ def UNet():
 
 if __name__ == '__main__':
     tr = Trainer()
-    tr.load_data()
+    #tr.load_data()
     tr.build_model()
     tr.train()
     tr.save()
