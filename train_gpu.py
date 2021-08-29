@@ -10,6 +10,7 @@ import time
 import mlflow
 from data_generator import DataGenerator
 from sklearn.metrics import roc_auc_score
+from tensorflow.keras.preprocessing.image import ImageDataGenerator 
 
 #SEEDS
 random.seed(1)
@@ -20,11 +21,27 @@ tf.random.set_seed(1)
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 4
-BATCH_SIZE = 8
+EPOCHS = 24
+BATCH_SIZE = 16
 DATASET_SIZE = 2500 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
-DATA_AUGUMENTATION = None
+DATA_AUGUMENTATION = True
+
+#PARAMETERS
+params = {
+    'shuffle': True,
+    'seed': 1,
+    'featurewise_center': True
+}
+augument = {
+    'featurewise_center': True,
+    'rotation_range': 20,
+    'zoom_range': 0.1,
+    'width_shift_range': 0.2,
+    'height_shift_range': 0.2,
+    'horizontal_flip':True,
+    'shear_range': 0.1
+}
 
 
 class Trainer:
@@ -38,7 +55,8 @@ class Trainer:
         mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
         mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
         mlflow.log_param('DATA_AUGUMENTATION', DATA_AUGUMENTATION)
-
+        mlflow.log_params(params)
+        mlflow.log_params(augument)
 
     def load_data(self, n=DATASET_SIZE) -> None:
         raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE, n=n)
@@ -51,6 +69,31 @@ class Trainer:
 
         print('Data loaded.')
 
+    def quick_load_data(self):
+        with tf.device('/device:GPU:0'):
+            imgs, msks = DataLoader().get_data_from_npy('data.npy')
+
+            norm_images, norm_masks = utils.normalize(imgs, msks)
+
+            train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks)
+            #train_img, train_msk, test_img, test_msk = utils.split_train_test(imgs, msks)
+
+            if DATA_AUGUMENTATION:
+                print('Data augumentation on')
+            datagen = ImageDataGenerator(**augument)
+            datagen.fit(norm_images)
+
+            self.train_iterator = datagen.flow(train_img, train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.test_iterator = datagen.flow(test_img, test_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+
+            # self.train_data = (train_img, train_msk)
+            # self.validation_data = (test_img, test_msk)
+
+            print('Data loaded.')
+            print(f'Training samples: {len(train_img)}, mean: {np.mean(train_img)},\n \
+                Validation samples: {len(test_img)}, mean: {np.mean(test_img)}')
+
+
     def build_model(self) -> str:
         self.model = UNet()
 
@@ -62,6 +105,11 @@ class Trainer:
             metrics=[
                 'acc',
                 tf.keras.metrics.AUC(),
+                #iou,
+                tf.keras.metrics.MeanIoU(num_classes=2),
+                tf.keras.metrics.Precision(),
+                #tf.keras.metrics.TrueNegatives(),
+                #tf.keras.metrics.TruePositives()
                 #auroc
                 ]
             )
@@ -70,6 +118,16 @@ class Trainer:
         return self.model.summary()
 
     def train(self) -> None:
+        with tf.device('/device:GPU:0'):
+            self.model.fit(
+                self.train_iterator,
+                steps_per_epoch=len(self.train_iterator),
+                epochs=EPOCHS, 
+                validation_steps=len(self.test_iterator),
+                validation_data=self.test_iterator
+            )
+
+
         #---------Train from directory --------------------------------------------------------------
         # with tf.device('/device:GPU:0'):
         #     train_x =  tf.convert_to_tensor(self.train_data[0], dtype=tf.float32)
@@ -85,16 +143,19 @@ class Trainer:
         # validation_data=(validation_x, validation_y)
         # )
         #--------------------------------------------------------------------------------------------
-        with tf.device('/device:GPU:0'):
-            image_generator, mask_generator, valid_generator, valid_mask_generator = DataLoader().tf_get_generators(resolution=IMAGE_SIZE,batch_size=BATCH_SIZE)
+        
+        #-------------------Train from flow--------------------------------------------------------------
+        # with tf.device('/device:GPU:0'):
+        #     image_generator, mask_generator, valid_generator, valid_mask_generator = DataLoader().tf_get_generators(resolution=IMAGE_SIZE,batch_size=BATCH_SIZE)
 
-            self.model.fit(
-                x = zip(image_generator, mask_generator),
-                epochs=EPOCHS,
-                steps_per_epoch= len(image_generator),
-                validation_data= zip(valid_generator, valid_mask_generator),
-                validation_steps=len(valid_generator)
-            )
+        #     self.model.fit(
+        #         x = zip(image_generator, mask_generator),
+        #         epochs=EPOCHS,
+        #         steps_per_epoch= len(image_generator),
+        #         validation_data= zip(valid_generator, valid_mask_generator),
+        #         validation_steps=len(valid_generator)
+        #     )
+        #---------------------------------------------------------------------------------------
 
 
         # -------- Traing with Generator (slower -> to be fixed) ------------------------------------
@@ -118,6 +179,14 @@ class Trainer:
         self.model.save_weights(path)
 
         print('Model weights saved: ' + path)
+
+def iou(y_true, y_pred):
+    y_pred = tf.cast(y_pred > 0.5, tf.bool)
+    y_true = tf.cast(y_true, tf.bool)
+    intersection = tf.math.logical_and(y_true, y_pred)
+    union = tf.math.logical_or(y_true, y_pred)
+    iou_score = tf.math.reduce_sum(tf.cast(intersection, tf.int16)) / tf.math.reduce_sum(tf.cast(union, tf.int16))
+    return iou_score
 
 def auroc(y_true, y_pred):
     return tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
@@ -179,8 +248,10 @@ def UNet():
 
 
 if __name__ == '__main__':
+    #utils.display_sys_info()
     tr = Trainer()
     #tr.load_data()
+    tr.quick_load_data()
     tr.build_model()
     tr.train()
     tr.save()
