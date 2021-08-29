@@ -14,8 +14,8 @@ class DataLoader:
         
 
     def get_dataset(self, resolution=512, n=100):
-        source_path_img = './src/data/raw_img/'
-        source_path_mask = './src/data/raw_masks/'
+        source_path_img = './src/data/raw_img/images/'
+        source_path_mask = './src/data/raw_masks/masks/'
 
         filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))[0:n+1]
 
@@ -73,7 +73,7 @@ class DataLoader:
         )
 
         valid_generator = valid_datagen.flow_from_directory(
-            'src/data/raw_masks',
+            'src/data/validation/images',
             target_size=(resolution, resolution),
             color_mode='grayscale',
             seed=seed,
@@ -83,7 +83,7 @@ class DataLoader:
         )
 
         valid_mask_generator = valid_mask_datagen.flow_from_directory(
-            'src/data/raw_masks',
+            'src/data/validation/masks',
             target_size=(resolution, resolution),
             color_mode='grayscale',
             seed=seed,
@@ -95,6 +95,8 @@ class DataLoader:
         return image_generator, mask_generator, valid_generator, valid_mask_generator
         
 
+    def get_data_from_npy(self, filename):
+        return np.load('data.npy')
 
 
 
