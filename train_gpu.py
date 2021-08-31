@@ -23,7 +23,7 @@ TRAIN_PATH = 'src/models/'
 EPOCHS = 100
 BATCH_SIZE = 8
 DATASET_SIZE = 2500 #Number of datapoints 
-FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
+FEATURE_CHANNELS = [64,128,256,512, 1024] #Number of feature channels at each floor of the UNet structure
 DATA_AUGUMENTATION = True
 
 #PARAMETERS
@@ -36,23 +36,23 @@ augument = {
     'featurewise_center': True,
     #'featurewise_std_normalization': True,
     'rotation_range': 15,
-    'zoom_range': 0.15,
+    'zoom_range': 0.1,
     'width_shift_range': 0.1,
     'height_shift_range': 0.1,
     'horizontal_flip':True,
     'vertical_flip': True,
-    'shear_range': 0.1
+    #'shear_range': 0.1
 }
 augument_mask = {
     #'featurewise_center': True,
     #'featurewise_std_normalization': True,
     'rotation_range': 15,
-    'zoom_range': 0.15,
+    'zoom_range': 0.1,
     'width_shift_range': 0.1,
     'height_shift_range': 0.1,
     'horizontal_flip':True,
     'vertical_flip': True,
-    'shear_range': 0.1
+    #'shear_range': 0.1
 }
 
 
@@ -83,6 +83,7 @@ class Trainer:
         print('Data loaded.')
 
     def quick_load_data(self):
+        '''Load data from numpy table file'''
         with tf.device('/device:GPU:0'):
             imgs, msks = DataLoader().get_data_from_npy('data.npy')
 
@@ -221,6 +222,13 @@ def iou(y_true, y_pred):
 def auroc(y_true, y_pred):
     return tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
 
+def jaccard_distance(y_true, y_pred, smooth=100):
+    with tf.device('/device:GPU:0'):
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=-1)
+        sum_ = tf.keras.backend.sum(tf.keras.backend.square(y_true), axis = -1) + tf.keras.backend.sum(tf.keras.backend.square(y_pred), axis=-1)
+        jac = (intersection + smooth) / (sum_ - intersection + smooth)
+    return (1 - jac)
+
 def down_block(x, filters, kernel_size=(3,3), padding="same", strides=1):
     with tf.device('/device:GPU:0'):
         c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
@@ -245,13 +253,6 @@ def bottleneck(x, filters, kernel_size=(3,3), padding="same", strides=1):
         c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
 
     return c
-
-def jaccard_distance(y_true, y_pred, smooth=100):
-    with tf.device('/device:GPU:0'):
-        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=-1)
-        sum_ = tf.keras.backend.sum(tf.keras.backend.square(y_true), axis = -1) + tf.keras.backend.sum(tf.keras.backend.square(y_pred), axis=-1)
-        jac = (intersection + smooth) / (sum_ - intersection + smooth)
-    return (1 - jac)
 
 def UNet():
     feature_maps = FEATURE_CHANNELS  #[64,128,256, 512, 1024]
@@ -278,9 +279,7 @@ def UNet():
 
 
 if __name__ == '__main__':
-    #utils.display_sys_info()
     tr = Trainer()
-    #tr.load_data()
     tr.quick_load_data()
     tr.build_model()
     tr.train()
