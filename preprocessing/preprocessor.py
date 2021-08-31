@@ -1,3 +1,4 @@
+from typing import Tuple
 from PIL import Image, ImageFilter, ImageOps, ImageStat
 import numpy as np
 import sys, os
@@ -19,7 +20,7 @@ class Preprocessor:
         self.resize()
         self.add_border()
 
-    def resize(self, target_resolution: tuple[int, int] = (512,512)) -> None:
+    def resize(self, target_resolution: Tuple[int, int] = (512,512)) -> None:
         '''Resize image to target resolution'''
         self.img = self.img.resize(target_resolution)
 

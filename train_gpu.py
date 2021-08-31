@@ -20,8 +20,8 @@ tf.random.set_seed(1)
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 2
-BATCH_SIZE = 16
+EPOCHS = 100
+BATCH_SIZE = 8
 DATASET_SIZE = 2500 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
 DATA_AUGUMENTATION = True
@@ -46,13 +46,13 @@ augument = {
 augument_mask = {
     #'featurewise_center': True,
     #'featurewise_std_normalization': True,
-    'rotation_range': 10,
-    'zoom_range': 0.1,
+    'rotation_range': 15,
+    'zoom_range': 0.15,
     'width_shift_range': 0.1,
     'height_shift_range': 0.1,
     'horizontal_flip':True,
     'vertical_flip': True,
-    'shear_range': 0.05
+    'shear_range': 0.1
 }
 
 
@@ -100,14 +100,16 @@ class Trainer:
             maskdatagen.fit(norm_masks,seed=params['seed'])
 
             testdatagen = ImageDataGenerator(featurewise_center=augument['featurewise_center'])
+            testmaskdatagen = ImageDataGenerator(featurewise_center=augument['featurewise_center'])
             testdatagen.fit(norm_images, seed=params['seed'])
+            testmaskdatagen.fit(norm_masks,seed=params['seed'])
 
             self.image_iterator = datagen.flow(train_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
             self.mask_iterator = maskdatagen.flow(train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
             self.train_iterator = zip(self.image_iterator, self.mask_iterator)
 
-            self.test_image_iterator = testdatagen.flow(test_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-            self.test_mask_iterator = testdatagen.flow(test_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.test_image_iterator = datagen.flow(test_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.test_mask_iterator = maskdatagen.flow(test_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
             self.test_iterator = zip(self.test_image_iterator, self.test_mask_iterator)
 
            
@@ -115,7 +117,6 @@ class Trainer:
             print('Data loaded.')
             print(f'Training samples: {len(train_img)}, mean: {np.mean(train_img)},\n \
                 Validation samples: {len(test_img)}, mean: {np.mean(test_img)}')
-
 
     def build_model(self) -> str:
         self.model = UNet()
@@ -142,8 +143,8 @@ class Trainer:
         return self.model.summary()
 
     def train(self) -> None:
-        
-        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=3, restore_best_weights=True)
+
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=5, restore_best_weights=True, verbose=1)
 
 
         with tf.device('/device:GPU:0'):
@@ -200,14 +201,14 @@ class Trainer:
         # )
         #--------------------------------------------------------------------------------------------
 
-      
-
     def save(self) -> None:
+        
         timestamp = time.strftime(r"%d%m%Y-%H%M%S")
         path = f'{TRAIN_PATH}UNet_model_{IMAGE_SIZE}x{IMAGE_SIZE}_{timestamp}.h5'
         self.model.save_weights(path)
-
+        mlflow.log_artifact(path)
         print('Model weights saved: ' + path)
+
 
 def iou(y_true, y_pred):
     y_pred = tf.cast(y_pred > 0.5, tf.bool)
