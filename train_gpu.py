@@ -1,7 +1,6 @@
 from data_generator import DataGenerator
 import numpy as np
 import tensorflow as tf 
-from tensorflow import keras
 from data_loader import DataLoader
 import random
 import matplotlib.pyplot as plt
@@ -21,7 +20,7 @@ tf.random.set_seed(1)
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 24
+EPOCHS = 2
 BATCH_SIZE = 16
 DATASET_SIZE = 2500 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
@@ -35,12 +34,25 @@ params = {
 }
 augument = {
     'featurewise_center': True,
-    'rotation_range': 20,
-    'zoom_range': 0.1,
-    'width_shift_range': 0.2,
-    'height_shift_range': 0.2,
+    #'featurewise_std_normalization': True,
+    'rotation_range': 15,
+    'zoom_range': 0.15,
+    'width_shift_range': 0.1,
+    'height_shift_range': 0.1,
     'horizontal_flip':True,
+    'vertical_flip': True,
     'shear_range': 0.1
+}
+augument_mask = {
+    #'featurewise_center': True,
+    #'featurewise_std_normalization': True,
+    'rotation_range': 10,
+    'zoom_range': 0.1,
+    'width_shift_range': 0.1,
+    'height_shift_range': 0.1,
+    'horizontal_flip':True,
+    'vertical_flip': True,
+    'shear_range': 0.05
 }
 
 
@@ -55,6 +67,7 @@ class Trainer:
         mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
         mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
         mlflow.log_param('DATA_AUGUMENTATION', DATA_AUGUMENTATION)
+        mlflow.log_param('BATCH_SIZE', BATCH_SIZE)
         mlflow.log_params(params)
         mlflow.log_params(augument)
 
@@ -81,13 +94,23 @@ class Trainer:
             if DATA_AUGUMENTATION:
                 print('Data augumentation on')
             datagen = ImageDataGenerator(**augument)
-            datagen.fit(norm_images)
+            datagen.fit(norm_images, seed=params['seed'])
 
-            self.train_iterator = datagen.flow(train_img, train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-            self.test_iterator = datagen.flow(test_img, test_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            maskdatagen = ImageDataGenerator(**augument_mask)
+            maskdatagen.fit(norm_masks,seed=params['seed'])
 
-            # self.train_data = (train_img, train_msk)
-            # self.validation_data = (test_img, test_msk)
+            testdatagen = ImageDataGenerator(featurewise_center=augument['featurewise_center'])
+            testdatagen.fit(norm_images, seed=params['seed'])
+
+            self.image_iterator = datagen.flow(train_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.mask_iterator = maskdatagen.flow(train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.train_iterator = zip(self.image_iterator, self.mask_iterator)
+
+            self.test_image_iterator = testdatagen.flow(test_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.test_mask_iterator = testdatagen.flow(test_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.test_iterator = zip(self.test_image_iterator, self.test_mask_iterator)
+
+           
 
             print('Data loaded.')
             print(f'Training samples: {len(train_img)}, mean: {np.mean(train_img)},\n \
@@ -97,8 +120,8 @@ class Trainer:
     def build_model(self) -> str:
         self.model = UNet()
 
-        optimizer = tf.keras.optimizers.Adam()
-
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        
         self.model.compile(
             optimizer=optimizer, 
             loss='binary_crossentropy', 
@@ -112,19 +135,25 @@ class Trainer:
                 #tf.keras.metrics.TruePositives()
                 #auroc
                 ]
+
             )
         
         print('Model built.')
         return self.model.summary()
 
     def train(self) -> None:
+        
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=3, restore_best_weights=True)
+
+
         with tf.device('/device:GPU:0'):
             self.model.fit(
                 self.train_iterator,
-                steps_per_epoch=len(self.train_iterator),
+                steps_per_epoch=len(self.image_iterator),
                 epochs=EPOCHS, 
-                validation_steps=len(self.test_iterator),
-                validation_data=self.test_iterator
+                validation_steps=len(self.test_image_iterator),
+                validation_data=self.test_iterator,
+                callbacks=[early_stopping]
             )
 
 
@@ -193,39 +222,39 @@ def auroc(y_true, y_pred):
 
 def down_block(x, filters, kernel_size=(3,3), padding="same", strides=1):
     with tf.device('/device:GPU:0'):
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
 
-        p = keras.layers.MaxPool2D((2,2), (2,2))(c)
+        p = tf.keras.layers.MaxPool2D((2,2), (2,2))(c)
     return c, p 
 
 def up_block(x, skip, filters, kernel_size=(3,3), padding="same", strides=1):
     with tf.device('/device:GPU:0'):
-        up_sampling = keras.layers.UpSampling2D((2,2))(x)
-        concat = keras.layers.Concatenate()([up_sampling, skip])
+        up_sampling = tf.keras.layers.UpSampling2D((2,2))(x)
+        concat = tf.keras.layers.Concatenate()([up_sampling, skip])
 
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(concat)
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(concat)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
 
     return c
 
 def bottleneck(x, filters, kernel_size=(3,3), padding="same", strides=1):
     with tf.device('/device:GPU:0'):
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
-        c = keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
+        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
 
     return c
 
 def jaccard_distance(y_true, y_pred, smooth=100):
     with tf.device('/device:GPU:0'):
-        intersection = keras.backend.sum(keras.backend.abs(y_true * y_pred), axis=-1)
-        sum_ = keras.backend.sum(keras.backend.square(y_true), axis = -1) + keras.backend.sum(keras.backend.square(y_pred), axis=-1)
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=-1)
+        sum_ = tf.keras.backend.sum(tf.keras.backend.square(y_true), axis = -1) + tf.keras.backend.sum(tf.keras.backend.square(y_pred), axis=-1)
         jac = (intersection + smooth) / (sum_ - intersection + smooth)
     return (1 - jac)
 
 def UNet():
     feature_maps = FEATURE_CHANNELS  #[64,128,256, 512, 1024]
-    inputs = keras.layers.Input( (IMAGE_SIZE, IMAGE_SIZE, 1) )
+    inputs = tf.keras.layers.Input( (IMAGE_SIZE, IMAGE_SIZE, 1) )
 
     pool_0 = inputs
     conv_1, pool_1 = down_block(pool_0, feature_maps[0]) #512 -> 256
@@ -240,9 +269,9 @@ def UNet():
     ups_3 = up_block(ups_2, conv_2, feature_maps[1]) #128 -> 256
     ups_4 = up_block(ups_3, conv_1, feature_maps[0]) #256 -> 512
 
-    outputs = keras.layers.Conv2D(1, (1,1), padding='same', activation='sigmoid')(ups_4)
+    outputs = tf.keras.layers.Conv2D(1, (1,1), padding='same', activation='sigmoid')(ups_4)
 
-    model = keras.models.Model(inputs, outputs)
+    model = tf.keras.models.Model(inputs, outputs)
     return model
 
 

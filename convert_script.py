@@ -9,8 +9,8 @@ filenames = os.listdir(source_path_img)
 
 
 dl = DataLoader()
-images, masks = dl.get_dataset(resolution=256, n=len(filenames))
+images, masks = dl.get_dataset(resolution=512)
 
-data = np.array((images, masks)) / 255
+data = np.array((images, masks))
 
-np.save('data', data)
+np.save('data_512p', data)

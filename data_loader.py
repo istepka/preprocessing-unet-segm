@@ -13,12 +13,14 @@ class DataLoader:
         self.masks = list()
         
 
-    def get_dataset(self, resolution=512, n=100):
+    def get_dataset(self, resolution=512, n=None):
         source_path_img = './src/data/raw_img/images/'
         source_path_mask = './src/data/raw_masks/masks/'
 
-        filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))[0:n+1]
-
+        if n is not None:
+            filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))[0:n+1]
+        else:
+            filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))
        
 
         for i, name in enumerate(filenames):
@@ -33,8 +35,8 @@ class DataLoader:
             self.images.append(image)
             self.masks.append(mask)
 
-            if i % 100 == 0:
-                print(f'Loaded {i+1} images.')
+            if i % 25 - 1 == 0:
+                print(f'Loaded {i} images.')
 
         
       
@@ -95,13 +97,15 @@ class DataLoader:
         return image_generator, mask_generator, valid_generator, valid_mask_generator
         
 
-    def get_data_from_npy(self, filename):
-        return np.load('data.npy')
-
+    def get_data_from_npy(self, filename=None):
+        if filename is None:
+            return np.load('data.npy')
+        else:
+            return np.load(filename)
 
 
 
 if __name__ == "__main__":
-    x,y,z = DataLoader().tf_get_generators()
+    x,y,z = DataLoader().get_data_from_npy()
     print(len(x))
   
