@@ -1,4 +1,4 @@
-import train 
+from train_gpu import Trainer
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -9,10 +9,10 @@ import numpy as np
 
 
 def predict(image):
-    trainer = train.Trainer()
+    trainer = Trainer()
     trainer.build_model()
 
-    trainer.model.load_weights('src/models/UNet_model_180821-Aug08.h5')
+    trainer.model.load_weights('src/models/UNet_model_256x256_01092021-192013.h5')
 
     result = trainer.model.predict(image)
 
@@ -20,13 +20,13 @@ def predict(image):
 
 
 def predict_showcase():
-    trainer = train.Trainer()
+    trainer = Trainer()
     trainer.load_data()
     trainer.build_model()
 
-    trainer.model.load_weights('src/models/UNet_model_256x256_23082021-123051.h5')
+    trainer.model.load_weights('src/models/UNet_model_256x256_01092021-192013.h5')
 
-    result = trainer.model.predict(trainer.validation_data[0])
+    result = trainer.model.predict(trainer.test_image_iterator.__next__())
 
     r = 1
     res = (result > 0.25).astype(float)
@@ -36,7 +36,7 @@ def predict_showcase():
     fig.subplots_adjust(hspace=0.4, wspace=0.4)
     ax = fig.add_subplot(1,2,1)
     ax.set_title('Ground truth')
-    ax.imshow(trainer.validation_data[r][1], cmap='gray')
+    ax.imshow(trainer.test_mask_iterator.__next__(), cmap='gray')
 
 
     ax1 = fig.add_subplot(1,2,2)
