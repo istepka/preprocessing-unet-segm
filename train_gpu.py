@@ -1,15 +1,13 @@
-from data_generator import DataGenerator
 import numpy as np
 import tensorflow as tf 
 from data_loader import DataLoader
 import random
-import matplotlib.pyplot as plt
 import utils
 import time
 import mlflow
 from data_generator import DataGenerator
-from sklearn.metrics import roc_auc_score
 from tensorflow.keras.preprocessing.image import ImageDataGenerator 
+from UNet import UNet
 
 #SEEDS
 random.seed(1)
@@ -71,17 +69,6 @@ class Trainer:
         mlflow.log_params(params)
         mlflow.log_params(augument)
 
-    def load_data(self, n=DATASET_SIZE) -> None:
-        raw_images, raw_masks = DataLoader().get_dataset(resolution=IMAGE_SIZE, n=n)
-        norm_images, norm_masks = utils.normalize(raw_images, raw_masks)
-
-        train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks)
-
-        self.train_data = (train_img, train_msk)
-        self.validation_data = (test_img, test_msk)
-
-        print('Data loaded.')
-
     def quick_load_data(self):
         '''Load data from numpy table file'''
         with tf.device('/device:GPU:0'):
@@ -120,7 +107,7 @@ class Trainer:
                 Validation samples: {len(test_img)}, mean: {np.mean(test_img)}')
 
     def build_model(self) -> str:
-        self.model = UNet()
+        self.model = UNet(FEATURE_CHANNELS, IMAGE_SIZE)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
         
@@ -209,72 +196,6 @@ class Trainer:
         self.model.save_weights(path)
         mlflow.log_artifact(path)
         print('Model weights saved: ' + path)
-
-
-def iou(y_true, y_pred):
-    y_pred = tf.cast(y_pred > 0.5, tf.bool)
-    y_true = tf.cast(y_true, tf.bool)
-    intersection = tf.math.logical_and(y_true, y_pred)
-    union = tf.math.logical_or(y_true, y_pred)
-    iou_score = tf.math.reduce_sum(tf.cast(intersection, tf.int16)) / tf.math.reduce_sum(tf.cast(union, tf.int16))
-    return iou_score
-
-def auroc(y_true, y_pred):
-    return tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
-
-def jaccard_distance(y_true, y_pred, smooth=100):
-    with tf.device('/device:GPU:0'):
-        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=-1)
-        sum_ = tf.keras.backend.sum(tf.keras.backend.square(y_true), axis = -1) + tf.keras.backend.sum(tf.keras.backend.square(y_pred), axis=-1)
-        jac = (intersection + smooth) / (sum_ - intersection + smooth)
-    return (1 - jac)
-
-def down_block(x, filters, kernel_size=(3,3), padding="same", strides=1):
-    with tf.device('/device:GPU:0'):
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
-
-        p = tf.keras.layers.MaxPool2D((2,2), (2,2))(c)
-    return c, p 
-
-def up_block(x, skip, filters, kernel_size=(3,3), padding="same", strides=1):
-    with tf.device('/device:GPU:0'):
-        up_sampling = tf.keras.layers.UpSampling2D((2,2))(x)
-        concat = tf.keras.layers.Concatenate()([up_sampling, skip])
-
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(concat)
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
-
-    return c
-
-def bottleneck(x, filters, kernel_size=(3,3), padding="same", strides=1):
-    with tf.device('/device:GPU:0'):
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(x)
-        c = tf.keras.layers.Conv2D(filters, kernel_size, padding=padding, strides=strides, activation='relu')(c)
-
-    return c
-
-def UNet():
-    feature_maps = FEATURE_CHANNELS  #[64,128,256, 512, 1024]
-    inputs = tf.keras.layers.Input( (IMAGE_SIZE, IMAGE_SIZE, 1) )
-
-    pool_0 = inputs
-    conv_1, pool_1 = down_block(pool_0, feature_maps[0]) #512 -> 256
-    conv_2, pool_2 = down_block(pool_1, feature_maps[1]) #256 -> 128 
-    conv_3, pool_3 = down_block(pool_2, feature_maps[2]) #128 -> 64
-    conv_4, pool_4 = down_block(pool_3, feature_maps[3]) #64 -> 32
-
-    bn = bottleneck(pool_4, feature_maps[4])
-
-    ups_1 = up_block(bn, conv_4, feature_maps[3]) #32 -> 64
-    ups_2 = up_block(ups_1, conv_3, feature_maps[2]) #64 -> 128
-    ups_3 = up_block(ups_2, conv_2, feature_maps[1]) #128 -> 256
-    ups_4 = up_block(ups_3, conv_1, feature_maps[0]) #256 -> 512
-
-    outputs = tf.keras.layers.Conv2D(1, (1,1), padding='same', activation='sigmoid')(ups_4)
-
-    model = tf.keras.models.Model(inputs, outputs)
-    return model
 
 
 
