@@ -9,8 +9,11 @@ filenames = os.listdir(source_path_img)
 
 
 dl = DataLoader()
-images, masks = dl.get_dataset(resolution=512)
+images, masks = dl.get_dataset(resolution=256, 
+                                source_path_img='./src/data/validation/images/images/',
+                                source_path_mask='./src/data/validation/masks/masks/'
+                                    )
 
 data = np.array((images, masks))
 
-np.save('data_512p', data)
+np.save('data_validation', data)

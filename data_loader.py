@@ -13,10 +13,7 @@ class DataLoader:
         self.masks = list()
         
 
-    def get_dataset(self, resolution=512, n=None):
-        source_path_img = './src/data/raw_img/images/'
-        source_path_mask = './src/data/raw_masks/masks/'
-
+    def get_dataset(self, resolution=512, source_path_img='./src/data/raw_img/images/', source_path_mask='./src/data/raw_masks/masks/', n=None):
         if n is not None:
             filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))[0:n+1]
         else:
