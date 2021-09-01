@@ -24,15 +24,17 @@ def norm_per_channel(images) -> Tuple[Any, float]:
     return images - mean, mean
 
 def apply_gaussian_blur(images, filter_radius=2) -> Any:
+    resolution = images[0].shape[0]
     for i, im in enumerate(images):
-        p = Preprocessor(Image.fromarray(im.flatten().reshape((256,256))).convert(mode='L'))
+        p = Preprocessor(Image.fromarray(im.flatten().reshape((resolution,resolution))).convert(mode='L'))
         p.apply_gaussian_blur(filter_radius)
         images[i] =  p.get_processed_np_img(normalized=False)
     return images
 
 def apply_histogram_equalization(images, cutoff_percentage) -> Any:
+    resolution = images[0].shape[0]
     for i, im in enumerate(images):
-        p = Preprocessor(Image.fromarray(im.flatten().reshape((256,256))).convert(mode='L'))
+        p = Preprocessor(Image.fromarray(im.flatten().reshape((resolution,resolution))).convert(mode='L'))
         p.hist_enchance_contrast(cutoff_percentage)
         images[i] =  p.get_processed_np_img(normalized=False)
     return images

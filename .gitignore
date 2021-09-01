@@ -12,3 +12,4 @@ unused/
 mlruns/
 *.txt
 *.npy
+logs/

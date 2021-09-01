@@ -1,4 +1,3 @@
-from preprocessing.preprocessor import Preprocessor
 import numpy as np
 import tensorflow as tf 
 from data_loader import DataLoader
@@ -6,24 +5,24 @@ import random
 import utils
 import time
 import mlflow
-from data_generator import DataGenerator
 from tensorflow.keras.preprocessing.image import ImageDataGenerator 
 from UNet import UNet
-from PIL import Image
+import datetime
+
 
 #SEEDS
 random.seed(1)
 np.random.seed(1)
 tf.random.set_seed(1)
 
-
 #HYPERPARAMETERS
 IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 100
+EPOCHS = 3
 BATCH_SIZE = 8
 DATASET_SIZE = 2500 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
+LOG_DIRECTORY = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 #PARAMETERS
 params = {
@@ -70,24 +69,31 @@ class Trainer:
     '''Tensorflow model trainer'''
 
     def __init__(self) -> None:
+        #Base properties
         self.model = None
         self.__init_log_parameters()
+       
+        #Callbacks init
+        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=LOG_DIRECTORY, histogram_freq=1)    
+        self.early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=10, restore_best_weights=True, verbose=1)
+
+        #Optimizer
+        self.optimizer = tf.keras.optimizers.Adam()
+
+        #Metrics
         self.metrics = [
             'acc',
             tf.keras.metrics.Precision(),
-            tf.keras.metrics.AUC(),
-            #utils.iou,
-            #utils.jaccard_index,
-            #tf.keras.metrics.MeanIoU(num_classes=2),
-            #tf.keras.metrics.TrueNegatives(),
-            #tf.keras.metrics.TruePositives()       
+            tf.keras.metrics.AUC(),    
         ]
-        self.callbacks = [
-            tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=10, restore_best_weights=True, verbose=1)
-        ]
-        self.optimizer = tf.keras.optimizers.Adam()
 
-    def __init_log_parameters(self):
+        #Callbacks
+        self.callbacks = [
+            self.early_stopping_callback,
+            self.tensorboard_callback
+        ]
+        
+    def __init_log_parameters(self) -> None:
         mlflow.tensorflow.autolog()
         mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
         mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
@@ -97,15 +103,17 @@ class Trainer:
         mlflow.log_params(augument)
         mlflow.log_params(preprocessing_parameters)
 
-    def load_data(self):
-        '''Load data from numpy table file'''
+    def load_data(self) -> None:
+        '''Load data from numpy table file, create generators and apply preprocessing according to parameters.'''
+
         with tf.device('/device:GPU:0'):
+
             imgs, msks = DataLoader().get_data_from_npy('data.npy')
             val_imgs, val_msks = DataLoader().get_data_from_npy('data_validation.npy')
-
             imgs = np.concatenate( (imgs, val_imgs), axis=0)
             msks = np.concatenate((msks, val_msks), axis=0) 
-            
+            print('Data loaded')
+
             #APPLY GAUSSIAN BLUR
             if preprocessing_parameters['gaussian_blur']:
                 imgs = utils.apply_gaussian_blur(imgs, preprocessing_parameters['gaussian_blur_radius'])
@@ -125,19 +133,17 @@ class Trainer:
             #APPLY NORMALIZATION
             if preprocessing_parameters['normalization']:
                 norm_images, norm_masks = utils.normalize(imgs, msks)
-                print('Applied normalization')
-
-            
+                print('Applied normalization')     
 
             #APPLY VALIDATION SPLIT
             train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks, validation_split=0.85)
-            
-            
             print(f'Train data {len(train_img)}\nValidation data {len(test_img)}')
 
             #APPLY AUGUMENTATION
             if preprocessing_parameters['augumentation']:
                 print('Data augumentation on')
+
+                #Initialize generators
                 datagen = ImageDataGenerator(**augument)
                 datagen.fit(train_img, seed=params['seed'])
 
@@ -145,10 +151,8 @@ class Trainer:
                 maskdatagen.fit(train_msk,seed=params['seed'])
 
                 testdatagen = ImageDataGenerator()
-                #testmaskdatagen = ImageDataGenerator(featurewise_center=augument['featurewise_center'])
-                #testdatagen.fit(norm_images, seed=params['seed'])
-                #testmaskdatagen.fit(norm_masks,seed=params['seed'])
 
+                #Initialize flow and zip it to format proper to fit() function 
                 self.image_iterator = datagen.flow(train_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
                 self.mask_iterator = maskdatagen.flow(train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
                 self.train_iterator = zip(self.image_iterator, self.mask_iterator)
@@ -159,11 +163,11 @@ class Trainer:
 
             
 
-            print('Data loaded.')
-            print(f'Training samples: {len(train_img)}, mean: {np.mean(train_img)},\n \
-                Validation samples: {len(test_img)}, mean: {np.mean(test_img)}')
+            print('Prep done')
+            print(f'Training samples: {len(train_img)}, channel mean: {np.mean(train_img)},\nValidation samples: {len(test_img)}, channel mean: {np.mean(test_img)}')
 
     def build_model(self) -> str:
+        '''Build and compile tf model structure from custom UNet architecture.'''
         with tf.device('/device:GPU:0'):
             self.model = UNet(FEATURE_CHANNELS, IMAGE_SIZE)  
             
@@ -177,6 +181,7 @@ class Trainer:
         return self.model.summary()
 
     def train(self) -> None:
+        '''Train model with fit() function.'''
         with tf.device('/device:GPU:0'):
             self.model.fit(
                 self.train_iterator,
@@ -187,14 +192,14 @@ class Trainer:
                 callbacks=self.callbacks
             )
 
-    def save(self) -> None:    
+    def save(self) -> str:   
+        '''Save model weights into h5 format''' 
         timestamp = time.strftime(r"%d%m%Y-%H%M%S")
         path = f'{TRAIN_PATH}UNet_model_{IMAGE_SIZE}x{IMAGE_SIZE}_{timestamp}.h5'
         self.model.save_weights(path)
         mlflow.log_param('Saved Model Name', path)
         print('Model weights saved: ' + path)
-
-
+        return path
 
 if __name__ == '__main__':
     tr = Trainer()
