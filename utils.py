@@ -1,17 +1,41 @@
+from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.lib.type_check import imag
 import tensorflow as tf
-#import wmi
 from sklearn.metrics import roc_auc_score
+from preprocessing.preprocessor import Preprocessor
+from PIL import Image
 
 def split_train_test(images, masks, validation_split=0.8):
-    split_index = int(images.shape[0] * 0.8)
-    return images[0:split_index], masks[0:split_index], images[split_index:], masks[split_index:]
+    # np.random.seed(1)
+    # mat = np.random.choice(a=[False, True], size=(len(images)), p=[validation_split, 1-validation_split])
+    # return images[~mat], masks[~mat], images[mat], masks[mat]
+    idx = int(len(images) * validation_split)
+    return images[0:idx], masks[0:idx], images[idx:], masks[idx:]
 
 def normalize( images, masks):
     images = images / 255
     masks = (masks > 0).astype(float)
     return images, masks
+
+def norm_per_channel(images) -> Tuple[Any, float]:
+    mean = images.mean()
+    return images - mean, mean
+
+def apply_gaussian_blur(images, filter_radius=2) -> Any:
+    for i, im in enumerate(images):
+        p = Preprocessor(Image.fromarray(im.flatten().reshape((256,256))).convert(mode='L'))
+        p.apply_gaussian_blur(filter_radius)
+        images[i] =  p.get_processed_np_img(normalized=False)
+    return images
+
+def apply_histogram_equalization(images, cutoff_percentage) -> Any:
+    for i, im in enumerate(images):
+        p = Preprocessor(Image.fromarray(im.flatten().reshape((256,256))).convert(mode='L'))
+        p.hist_enchance_contrast(cutoff_percentage)
+        images[i] =  p.get_processed_np_img(normalized=False)
+    return images
 
 def display_pair(image1, image2, title1='', title2=''):
    
@@ -27,7 +51,6 @@ def display_pair(image1, image2, title1='', title2=''):
 
 
     plt.show()
-
 
 def iou(y_true, y_pred):
     y_pred = tf.cast(y_pred > 0.5, tf.bool)
@@ -47,4 +70,27 @@ def jaccard_distance(y_true, y_pred, smooth=100):
         jac = (intersection + smooth) / (sum_ - intersection + smooth)
     return (1 - jac)
 
+def jaccard_index(y_true, y_pred, smooth=0.0001):
+    with tf.device('/device:GPU:0'):
+        y_pred = tf.math.greater_equal(y_pred, 0.5)
+        y_true = tf.cast(y_true, tf.bool)
+        intersection = tf.math.reduce_sum( tf.cast(tf.math.logical_and(y_pred, y_true), tf.int8))
+        union = tf.math.reduce_sum( tf.cast(tf.math.logical_or(y_pred, y_true), tf.int8))
 
+        jac_index = intersection /  union
+        
+    return jac_index
+
+if __name__ == '__main__':
+
+    inp = tf.convert_to_tensor([0.1, 0.2, 0.6, 0.8], dtype=tf.float32)
+    tar = tf.convert_to_tensor([1, 0, 1, 1], dtype=tf.float32)
+
+    j = jaccard_index(inp, tar)
+
+    print('Jaccard index: ', j)
+
+  
+    
+
+    

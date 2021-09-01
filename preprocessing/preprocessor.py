@@ -13,12 +13,18 @@ class Preprocessor:
 
     def autopreprocess(self) -> None:
         '''Execute whole preprocessing sequence over an image'''
+        self.__normalize()
         self.convert_to_grayscale()
-        self.enchance_contrast()
         self.remove_vignette()
         self.remove_hair()
         self.resize()
+        self.hist_enchance_contrast()
+        self.apply_gaussian_blur()
         self.add_border()
+    
+    def __normalize(self) -> None:
+        if self.img.max() > 1 : 
+            self.img = self.img / 255
 
     def resize(self, target_resolution: Tuple[int, int] = (512,512)) -> None:
         '''Resize image to target resolution'''
@@ -38,7 +44,7 @@ class Preprocessor:
         '''Convert image to grayscale'''
         self.img = self.img.convert('L')
 
-    def enchance_contrast(self, cutoff_percentage: float =0.02) -> None:
+    def hist_enchance_contrast(self, cutoff_percentage: float =0.02) -> None:
         '''Enchance contrast by cut off higest & lowest histogram x%\n
         cutoff_percentage: Top and bottom percentage  of histogram intensities to be cut off. (0-1)
         '''
@@ -49,6 +55,10 @@ class Preprocessor:
         #im_edges = self.img.filter(ImageFilter.FIND_EDGES)
         #TODO
         pass
+
+    def apply_gaussian_blur(self, radius=3) -> None:
+        '''Apply gaussian blur'''
+        self.img = self.img.filter(ImageFilter.GaussianBlur(radius=radius))
     
     def remove_vignette(self) -> None:
         '''Remove vignette effect from image and replace its area by neutral pixels'''
@@ -90,10 +100,25 @@ class Preprocessor:
                 self.img = source_image
                 break 
     
+    def get_processed_np_img(self, normalized=True) -> np.array:
+        if normalized:
+            return np.asarray(self.img.getdata()).reshape(self.img.size[1], self.img.size[0], -1) /255
+        else:
+            return np.asarray(self.img.getdata()).reshape(self.img.size[1], self.img.size[0], -1) 
 
     def save(self, name: str, path: str="./src/data/temp/") -> None:
         if not os.path.exists(path):
             os.makedirs(path)
         self.img.save(path + name)
 
+
+class Prep:
+
+    def __init__(self, image_array: np.array) -> None:
+        self.image_arr = image_array
+
+
+        for im in self.image_arr:
+            Preprocessor(im).hist_enchance_contrast()
+    
 
