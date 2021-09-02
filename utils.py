@@ -1,3 +1,4 @@
+from pickle import NONE
 from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,8 +20,9 @@ def normalize( images, masks):
     masks = (masks > 0).astype(float)
     return images, masks
 
-def norm_per_channel(images) -> Tuple[Any, float]:
-    mean = images.mean()
+def norm_per_channel(images, mean=None) -> Tuple[Any, float]:
+    if mean is None:
+        mean = images.mean()
     return images - mean, mean
 
 def apply_gaussian_blur(images, filter_radius=2) -> Any:
