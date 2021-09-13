@@ -13,3 +13,4 @@ mlruns/
 *.txt
 *.npy
 logs/
+tmp*

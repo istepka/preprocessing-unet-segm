@@ -85,9 +85,6 @@ def connected_components_on_batch(batch_of_images):
     batch_of_images = connected_components(K.eval(batch_of_images), return_only_best=True)
     return batch_of_images
 
-
-
-
 def plot(image, mask):
     import matplotlib.pyplot as plt
     #res = (image > 0.25).astype(float)

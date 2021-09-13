@@ -47,7 +47,7 @@ filenames = os.listdir(source_path_img)
 # np.save(f'test_data_{test_len}_{RESOLUTION}', test_data)
 
 import cv2 as cv
-import prep
+import preprocessing.prep_cv as prep
 
 source_path_img = './src/data/raw_img/images/'
 source_path_mask = './src/data/raw_masks/masks/'
