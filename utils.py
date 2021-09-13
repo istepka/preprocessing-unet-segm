@@ -1,4 +1,3 @@
-from pickle import NONE
 from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,7 +6,9 @@ import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from preprocessing.preprocessor import Preprocessor
 from PIL import Image
+from tensorflow.keras.preprocessing.image import ImageDataGenerator 
 
+#PREPROCESSING
 def split_train_test(images, masks, validation_split=0.8):
     # np.random.seed(1)
     # mat = np.random.choice(a=[False, True], size=(len(images)), p=[validation_split, 1-validation_split])
@@ -41,6 +42,20 @@ def apply_histogram_equalization(images, cutoff_percentage) -> Any:
         images[i] =  p.get_processed_np_img(normalized=False)
     return images
 
+def apply_zca_normalization(images, fit_dataset=None) -> Any:
+    gen = ImageDataGenerator(zca_whitening=True)
+
+    if fit_dataset is None:
+        gen.fit(images, seed=133)
+    else:
+        gen.fit(fit_dataset, seed=133)
+
+    for i, im in enumerate(images):
+        images[i] = gen.standardize(im)
+
+    return images
+
+#DISPLAY
 def display_pair(image1, image2, title1='', title2=''):
    
     fig = plt.figure()
@@ -56,6 +71,7 @@ def display_pair(image1, image2, title1='', title2=''):
 
     plt.show()
 
+#FUNCTIONS
 def iou(y_true, y_pred):
     y_pred = tf.cast(y_pred > 0.5, tf.bool)
     y_true = tf.cast(y_true, tf.bool)
@@ -84,6 +100,13 @@ def jaccard_index(y_true, y_pred, smooth=0.0001):
         jac_index = intersection /  union
         
     return jac_index
+
+def mean_iou(y_true, y_pred):
+    y_pred = tf.round(y_pred)
+    intersect = tf.reduce_sum(y_true * y_pred, axis=[1, 2, 3])
+    union = tf.reduce_sum(y_true, axis=[1, 2, 3]) + tf.reduce_sum(y_pred, axis=[1, 2, 3])
+    smooth = tf.ones(tf.shape(intersect))
+    return tf.reduce_mean((intersect + smooth) / (union - intersect + smooth))
 
 if __name__ == '__main__':
 

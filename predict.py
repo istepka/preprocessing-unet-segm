@@ -12,7 +12,7 @@ def predict(image):
     trainer = Trainer()
     trainer.build_model()
 
-    trainer.model.load_weights('src/models/UNet_model_256x256_01092021-192013.h5')
+    trainer.model.load_weights('src/models/UNet_model_256x256_02092021-181753.h5')
 
     result = trainer.model.predict(image)
 
@@ -26,7 +26,7 @@ def predict_showcase():
 
     trainer.model.load_weights('src/models/UNet_model_256x256_01092021-192013.h5')
 
-    result = trainer.model.predict(trainer.test_image_iterator.__next__())
+    result = trainer.model.predict(trainer.valid_iterator.__next__())
 
     r = 1
     res = (result > 0.25).astype(float)
@@ -47,4 +47,12 @@ def predict_showcase():
 
 
 if __name__ == '__main__':
-    predict_showcase()
+    #predict_showcase()
+
+    images = np.load('new_test_data_246.npy')
+
+    img, mask = images[0][0], images[1][0]
+
+    result = predict(img)
+
+    print(type(result))
