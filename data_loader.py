@@ -101,6 +101,9 @@ class DataLoader:
             return np.load(filename)
 
 
+    
+    
+
 
 if __name__ == "__main__":
     x,y,z = DataLoader().get_data_from_npy()

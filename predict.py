@@ -49,10 +49,10 @@ def predict_showcase():
 if __name__ == '__main__':
     #predict_showcase()
 
-    images = np.load('new_test_data_246.npy')
+    images = np.load('npy_datasets/cv_train_images.npy')
+    print(images.shape)
+    # img, mask = images[0][0], images[1][0]
 
-    img, mask = images[0][0], images[1][0]
+    # result = predict(img)
 
-    result = predict(img)
-
-    print(type(result))
+    # print(type(result))

@@ -110,12 +110,13 @@ def mean_iou(y_true, y_pred):
 
 if __name__ == '__main__':
 
-    inp = tf.convert_to_tensor([0.1, 0.2, 0.6, 0.8], dtype=tf.float32)
-    tar = tf.convert_to_tensor([1, 0, 1, 1], dtype=tf.float32)
+    train_img = np.load('npy_datasets/cv_test_images.npy')
 
-    j = jaccard_index(inp, tar)
+    t,_=normalize(train_img, train_img)
 
-    print('Jaccard index: ', j)
+    print(t.shape)
+    print(t.max())
+    print(t.min())
 
   
     
