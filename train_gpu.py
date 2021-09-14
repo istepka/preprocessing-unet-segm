@@ -9,6 +9,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from UNet import UNet
 import datetime
 import sys
+from preprocessing import prep_cv as prep
 
 
 #SEEDS
@@ -17,9 +18,9 @@ np.random.seed(1)
 tf.random.set_seed(1)
 
 #HYPERPARAMETERS
-IMAGE_SIZE = 128
+IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 2
+EPOCHS = 100
 BATCH_SIZE = 8
 DATASET_SIZE = 2694 #Number of datapoints 
 FEATURE_CHANNELS = [32,64,128,256,512] #Number of feature channels at each floor of the UNet structure
@@ -47,7 +48,7 @@ augument_mask = {
     'vertical_flip': True,
 }
 preprocessing_parameters = {
-    'augumentation': True,
+    'augumentation': False,
     'normalization': True,
     'histogram_equalization': False,
     'histogram_cutoff_percentage': 0.02,
@@ -57,8 +58,9 @@ preprocessing_parameters = {
     'per_channel_normalization': False,
     'gaussian_blur': False,
     'gaussian_blur_radius': 2,
-    'zca_whitening': False
-}
+    'zca_whitening': False,
+    'connected_components': False
+} #By default all preprocessings are disabled except 0-1 normalization
 
 
 class Trainer:
@@ -67,6 +69,7 @@ class Trainer:
     def __init__(self) -> None:
         #Base properties
         self.model = None
+        self.input_shape = 1
         self.__init_log_parameters()
        
         #Callbacks init
@@ -92,6 +95,7 @@ class Trainer:
         ]
         
     def __init_log_parameters(self) -> None:
+        '''Initialize mlflow, and add some log parameters'''
         mlflow.tensorflow.autolog()
         mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
         mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
@@ -101,109 +105,125 @@ class Trainer:
         mlflow.log_params(augument)
         mlflow.log_params(preprocessing_parameters)
 
+    def __load_data_into_dict(self) -> None:
+        '''Fetch data from numpy tables and create dictionary with train, val, test data'''
+        self.data = {}
+        self.data['train_images'] =  np.load('npy_datasets/cv_data/cv_train_images.npy')
+        self.data['train_masks'] = np.load('npy_datasets/cv_data/cv_train_masks.npy')
+        self.data['val_images'] =  np.load('npy_datasets/cv_data/cv_val_images.npy')
+        self.data['val_masks'] =  np.load('npy_datasets/cv_data/cv_val_masks.npy')
+        self.data['test_images'] =  np.load('npy_datasets/cv_data/cv_test_images.npy')
+        self.data['test_masks'] =  np.load('npy_datasets/cv_data/cv_test_masks.npy')
+
+        print(self.data['train_images'].shape)
+
+    def __apply_preprocessings(self) -> None:
+        '''Apply preprocessings based on parameters contained in preprocessing_parameters dictionary'''
+        #APPLY GAUSSIAN BLUR - performed on train/val/test input images
+        if preprocessing_parameters['gaussian_blur']:
+            for key in self.data.keys():
+                if 'images' in key:
+                    self.data[key] = utils.apply_gaussian_blur(self.data[key], preprocessing_parameters['gaussian_blur_radius'])
+            print('Applied gaussian blur on all input images')
+
+        #APPLY HISTOGRAM EQUALIZATION - performed on train/val/test input images
+        if preprocessing_parameters['histogram_equalization']:
+            for key in self.data.keys():
+                if 'images' in key:
+                    self.data[key] = utils.apply_histogram_equalization(self.data[key], preprocessing_parameters['histogram_cutoff_percentage'])
+            print('Applied histogram equalization on all input images')
+
+        #GET CONNECTED COMPONENTS
+        if preprocessing_parameters['connected_components']:
+            for key in self.data.keys():
+                if 'images' in key:
+                    self.data[key] = prep.connected_components_on_batch(np.array(self.data[key], dtype='f'), take=5)
+            self.input_shape = self.data['train_images'].shape
+            print('Applied and added connected components channels')
+
+        #APPLY NORMALIZATION PER-CHANNEL
+        if preprocessing_parameters['per_channel_normalization']:      
+            self.data['train_images'] , mean = utils.norm_per_channel(self.data['train_images'] )
+            self.data['val_images'], mean = utils.norm_per_channel(self.data['val_images'], mean)
+            self.data['test_images'], mean = utils.norm_per_channel(self.data['test_images'], mean)
+            mlflow.log_param('mean_per_channel', mean)
+            print('Normalized per channel')
+
+        #APPLY NORMALIZATION
+        if preprocessing_parameters['normalization']:
+            self.data['train_images'], self.data['train_masks'] = utils.normalize(self.data['train_images'], self.data['train_masks'])
+            self.data['test_images'], self.data['test_masks'] = utils.normalize(self.data['test_images'], self.data['test_masks'])
+            self.data['val_images'], self.data['val_masks'] = utils.normalize(self.data['val_images'], self.data['val_masks'])
+            print('Applied normalization')
+
+        #APPLY ZCA
+        if preprocessing_parameters['zca_whitening']:
+            gen = ImageDataGenerator(featurewise_center=True ,zca_whitening=True)
+            print('ZCA fit will be performed, it might take some time')
+            gen.fit(self.data['train_images'][0:250], seed=133)
+            print('ZCA fit done')
+            
+
+            for i in range(len(self.data['train_images'])):
+                self.data['train_images'][i] = gen.standardize(self.data['train_images'][i])
+
+                if i < len(self.data['val_images']):
+                    self.data['val_images'][i] = gen.standardize(self.data['val_images'][i])
+                if i < len(self.data['test_images']):
+                    self.data['test_images'][i] = gen.standardize(self.data['test_images'][i])
+
+                if i % 50 == 0:
+                    print('ZCA applied to ', i, ' samples')
+
+            print('Applied zca_whitening')
+
     def load_data(self) -> None:
-        '''Load data from numpy table file, create generators and apply preprocessing according to parameters.'''
+        '''Load data, create generators and apply preprocessing according to parameters.'''
 
         with tf.device('/device:GPU:0'):
 
-            train_img, train_msk = DataLoader().get_data_from_npy('128new_train_data_2242.npy')
-            test_imgs, test_msks = DataLoader().get_data_from_npy('128new_test_data_246.npy')
-            val_imgs, val_msks = DataLoader().get_data_from_npy('128new_val_data_206.npy')
+            #Fetch data from file and create dictionary from it
+            self.__load_data_into_dict()            
             print('Data loaded')
 
-            #APPLY GAUSSIAN BLUR
-            if preprocessing_parameters['gaussian_blur']:
-                train_img = utils.apply_gaussian_blur(train_img, preprocessing_parameters['gaussian_blur_radius'])
-                test_imgs = utils.apply_gaussian_blur(test_imgs, preprocessing_parameters['gaussian_blur_radius'])
-                val_imgs = utils.apply_gaussian_blur(val_imgs, preprocessing_parameters['gaussian_blur_radius'])
-                print('Applied gaussian blur')
+            #Apply all preprocessings
+            self.__apply_preprocessings()
 
-            #APPLY HISTOGRAM EQUALIZATION
-            if preprocessing_parameters['histogram_equalization']:
-                train_img = utils.apply_histogram_equalization(train_img, preprocessing_parameters['histogram_cutoff_percentage'])
-                test_imgs = utils.apply_histogram_equalization(test_imgs, preprocessing_parameters['histogram_cutoff_percentage'])
-                val_imgs = utils.apply_histogram_equalization(val_imgs, preprocessing_parameters['histogram_cutoff_percentage'])
-                print('Applied histogram equalization')
-
-            #APPLY NORMALIZATION PER-CHANNEL
-            if preprocessing_parameters['per_channel_normalization']:
-                train_img, mean = utils.norm_per_channel(train_img)
-                test_imgs, mean = utils.norm_per_channel(test_imgs, mean)
-                val_imgs, mean = utils.norm_per_channel(val_imgs, mean)
-                mlflow.log_param('mean_per_channel', mean)
-                print('Normalized per channel')
-
-            #APPLY NORMALIZATION
-            if preprocessing_parameters['normalization']:
-                train_img, train_msk = utils.normalize(train_img, train_msk)
-                test_imgs, test_msks = utils.normalize(test_imgs, test_msks)
-                val_imgs, val_msks = utils.normalize(val_imgs, val_msks)
-                print('Applied normalization')
-
-            if preprocessing_parameters['zca_whitening']:
-                gen = ImageDataGenerator(featurewise_center=True ,zca_whitening=True)
-                print('ZCA fit will be performed, it might take some time')
-                gen.fit(val_imgs[0:100], seed=133)
-                print('ZCA fit done')
-               
-
-                for i in range(len(train_img)):
-                    train_img[i] = gen.standardize(train_img[i])
-
-                    if i < len(val_imgs):
-                        val_imgs[i] = gen.standardize(val_imgs[i])
-                    if i < len(test_imgs):
-                        test_imgs[i] = gen.standardize(test_imgs[i])
-
-                    if i % 50 == 0:
-                        print('ZCA applied to ', i, ' samples')
-
-                # train_img = utils.apply_zca_normalization(train_img)
-                # val_imgs = utils.apply_zca_normalization(val_imgs)
-                # test_imgs = utils.apply_zca_normalization(test_imgs)
-                print('Applied zca_whitening')
-
-
-            #APPLY VALIDATION SPLIT
-            #train_img, train_msk, test_img, test_msk = utils.split_train_test(norm_images, norm_masks, validation_split=0.85)
-            #print(f'Train data {len(train_img)}\nValidation data {len(test_img)}')
-
-            self.test_images = test_imgs
-            self.test_masks = test_msks
-
-            #APPLY AUGUMENTATION
-            if preprocessing_parameters['augumentation']:
+            #Disable data augumentation
+            if not preprocessing_parameters['augumentation']:
+                augument = {}
+                augument_mask ={}
+                print('Data augumentation off')
+            else:
                 print('Data augumentation on')
 
-                #Initialize generators
-                datagen = ImageDataGenerator(**augument)
-                datagen.fit(train_img, seed=params['seed'])
+            #Initialize generators
+            datagen = ImageDataGenerator(**augument)
+            datagen.fit(self.data['train_images'], seed=params['seed'])
 
-                maskdatagen = ImageDataGenerator(**augument_mask)
-                maskdatagen.fit(train_msk,seed=params['seed'])
+            maskdatagen = ImageDataGenerator(**augument_mask)
+            maskdatagen.fit(self.data['train_masks'],seed=params['seed'])
 
-                validdatagen = ImageDataGenerator()
+            validdatagen = ImageDataGenerator()
 
-                #Initialize flow and zip it to format proper to fit() function 
-                image_iterator = datagen.flow(train_img, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-                mask_iterator = maskdatagen.flow(train_msk, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-                self.train_iterator = zip(image_iterator, mask_iterator)
-                self.train_steps = len(image_iterator)
+            #Initialize flow and zip it to format proper to fit() function 
+            image_iterator = datagen.flow(self.data['train_images'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            mask_iterator = maskdatagen.flow(self.data['train_masks'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.train_iterator = zip(image_iterator, mask_iterator)
+            self.train_steps = len(image_iterator)
 
-                valid_image_iterator = validdatagen.flow(val_imgs, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-                valid_mask_iterator = validdatagen.flow(val_msks, batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-                self.valid_iterator = zip(valid_image_iterator, valid_mask_iterator)
-                self.valid_steps = len(valid_image_iterator)
-
-            
+            valid_image_iterator = validdatagen.flow(self.data['val_images'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            valid_mask_iterator = validdatagen.flow(self.data['val_masks'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            self.valid_iterator = zip(valid_image_iterator, valid_mask_iterator)
+            self.valid_steps = len(valid_image_iterator)
 
             print('Prep done')
-            print(f'Training samples: {len(train_img)}, channel mean: {np.mean(train_img)},\nValidation samples: {len(val_imgs)}, channel mean: {np.mean(val_imgs)}')
+            print(f'Training samples: {len(self.data["train_images"])}, channel mean: {np.mean(self.data["train_images"])},\nValidation samples: {len(self.data["val_images"])}, channel mean: {np.mean(self.data["val_images"])}')
 
     def build_model(self) -> str:
         '''Build and compile tf model structure from custom UNet architecture.'''
         with tf.device('/device:GPU:0'):
-            self.model = UNet(FEATURE_CHANNELS, IMAGE_SIZE)  
+            self.model = UNet(FEATURE_CHANNELS, IMAGE_SIZE, self.input_shape[-1])  
             
             self.model.compile(
                 optimizer=self.optimizer, 
@@ -236,46 +256,21 @@ class Trainer:
         return path
 
     def evaluate(self) -> None:  
-        res = self.model.evaluate(x=self.test_images, y=self.test_masks, verbose=1, batch_size=BATCH_SIZE)
+        '''Evaluate and save model performance with metrics'''
+        res = self.model.evaluate(x=self.data['test_images'], y=self.data['test_masks'], verbose=1, batch_size=BATCH_SIZE)
         mlflow.log_param('Test performance',list(zip(self.model.metrics_names,res )))
 
 if __name__ == '__main__':
-    tmp_augument = augument
-    tmp_augument_mask = augument_mask
+
 
     for i in range(0,1):
-        run_name = 'BS+A'
-        preprocessing_parameters['gaussian_blur'] = False 
-        preprocessing_parameters['histogram_equalization'] = False  
-        preprocessing_parameters['per_channel_normalization'] = False 
-        #augument = {} 
-        #augument_mask = {}
+        run_name = 'BS+HEQ+CC(5 additional channels)'
 
-        preprocessing_parameters['zca_whitening'] = False
+        preprocessing_parameters['connected_components'] = True
+        preprocessing_parameters['histogram_equalization'] = True
+        preprocessing_parameters['normalization'] = True
 
-        # if i == 0:  
-        #     preprocessing_parameters['gaussian_blur'] = False 
-        #     preprocessing_parameters['histogram_equalization'] = False  
-        #     preprocessing_parameters['per_channel_normalization'] = False 
-        #     augument = {}
-        #     augument_mask = {}
-        #     run_name = 'V'
-        # if i == 1:
-        #     preprocessing_parameters['per_channel_normalization'] = True
-        #     augument = {}
-        #     augument_mask = {}
-        #     run_name = 'V+PCN'
-        # if i == 2:
-        #     augument = tmp_augument
-        #     augument_mask = tmp_augument_mask
-        #     run_name = 'V+PCN+A'
-        # if i == 3:
-        #     preprocessing_parameters['histogram_equalization'] = True  
-        #     run_name = 'V+PCN+A+HEQ'
-        # if i == 4:
-        #     preprocessing_parameters['gaussian_blur'] = True  
-        #     run_name = 'V+PCN+A+HEQ+GB'
-
+     
 
         mlflow.start_run(run_name=run_name)
         if len(sys.argv) > 1:
@@ -286,8 +281,6 @@ if __name__ == '__main__':
         tr.build_model()
         tr.train()
         tr.evaluate()
-
-        #mlflow.keras.save_model(tr.model, f'C:/Users/ignac/OneDrive/Pulpit/Lesion-boundary-segmentation/mlruns/model{time.strftime(r"%d%m%Y-%H%M%S")}')
 
         tr.save()
 

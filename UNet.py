@@ -27,9 +27,9 @@ def bottleneck(x, filters, kernel_size=(3,3), padding="same", strides=1):
 
     return c
 
-def UNet(feature_channels, image_size):
+def UNet(feature_channels, image_size, input_channels=1):
     feature_maps = feature_channels  #[64,128,256, 512, 1024]
-    inputs = tf.keras.layers.Input( (image_size, image_size, 1) )
+    inputs = tf.keras.layers.Input( (image_size, image_size, input_channels) )
 
     pool_0 = inputs
     conv_1, pool_1 = down_block(pool_0, feature_maps[0]) #512 -> 256
