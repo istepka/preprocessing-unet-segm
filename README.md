@@ -24,19 +24,21 @@
 * connected components
 
 
-### Pre-processing steps currently implemented
+### Pre-processings currently implemented
 1. Resize image to a constant computable dimension (e.g. 512x512)  
 1. Convert image to grayscale to reduce image dimension and match format of orginal U-Net reference  
 1. Contrast enchancement  
     This ensures images have consistent contrast between neighbouring areas and RoI. It will be accomplished by first calculating the histogram of grayscale image. The top 2% of histogram intensities were then selected and used as cut off values. Histogram then stretches to remap the darkest pixel to 0 and lightest to 255 against the selected cut off thresholds.  
 1. Per-channel mean normalization
 1. Data augumentation 
+1. ZCA whitening
+1. Connected components
 
 
 
 ***
 ## Image segmentation  
-Segmentation will be performed using U-Net Convolutional Neural Network. 
+Segmentation is performed using U-Net Convolutional Neural Network. 
 
 ### Best result yet is test ACC 93.7%, AuC 97.9%, PRECISION 86.6%
 With parameters:
