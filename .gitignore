@@ -11,6 +11,10 @@ unused/
 *.h5*
 mlruns/
 *.txt
-*.npy
 logs/
 tmp*
+note.md
+simplified.csv
+simple_predict.ipynb 
+
+*/cv_data/
