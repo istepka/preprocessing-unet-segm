@@ -16,5 +16,5 @@ tmp*
 note.md
 simplified.csv
 simple_predict.ipynb 
-
+*.csv
 */cv_data/
