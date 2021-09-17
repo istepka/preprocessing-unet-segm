@@ -1,0 +1,16 @@
+{
+    "resolution": 128,
+    "runs": [
+        "BS",
+        "BS + HEQ",
+        "BS + PCN",
+        "BS + CC",
+        "BS + HEQ + PCN",
+        "BS + HEQ + CC",
+        "BS + PCN + CC",
+        "BS + AUG",
+        "BS + AUG + PCN",
+        "BS + AUG + HEQ",
+        "BS + AUG + HEQ + PCN"
+    ]
+}

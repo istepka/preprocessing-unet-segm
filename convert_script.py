@@ -54,7 +54,7 @@ source_path_mask = './src/data/raw_masks/masks/'
 source_path_val_img = './src/data/validation/images/images/'
 source_path_val_mask = './src/data/validation/masks/masks/'
 #filenames = os.listdir(source_path_img)
-filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_val_img)))
+filenames = list(map(lambda x: x[:-4] ,os.listdir(source_path_img)))
 
 print(f'found {len(filenames)} images')
 
@@ -63,7 +63,7 @@ masks = list()
 
 for i,name in enumerate(filenames):
 
-    im  = cv.imread(source_path_val_img + name + '.jpg')
+    im  = cv.imread(source_path_img + name + '.jpg')
     #print(source_path_val_img + name + '.jpg')
     c = cv.resize(im, (RES,RES))
     c = cv.cvtColor(c, cv.COLOR_RGB2GRAY)
@@ -77,7 +77,7 @@ for i,name in enumerate(filenames):
     #     c = np.concatenate((c, ch), axis=2)
 
 
-    mask = cv.imread(source_path_val_mask + name + '_segmentation.png')
+    mask = cv.imread(source_path_mask + name + '_segmentation.png')
     mask = cv.resize(mask, (RES,RES))
     mask = cv.cvtColor(mask, cv.COLOR_RGB2GRAY)
     mask = np.reshape(mask, (RES,RES,-1))
@@ -98,8 +98,8 @@ print(images.shape)
 print(masks.shape)
 
 
-np.save('npy_datasets/cv_data128/cv_images_val.npy', images)
+np.save('npy_datasets/cv_data128/cv_images.npy', images)
 
-np.save('npy_datasets/cv_data128/cv_masks_val.npy', masks)
+np.save('npy_datasets/cv_data128/cv_masks.npy', masks)
 
 
