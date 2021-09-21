@@ -1,4 +1,6 @@
 src/data/
+src/bacteria
+npy_datasets/bacteria
 .vscode/
 test.py
 __pycache__/
@@ -18,3 +20,4 @@ simplified.csv
 simple_predict.ipynb 
 *.csv
 */cv_data/
+assumptioons.md

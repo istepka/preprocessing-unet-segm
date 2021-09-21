@@ -1,13 +1,14 @@
 import numpy as np
 import tensorflow as tf 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator 
-import cv2
 from sklearn.metrics import jaccard_score, confusion_matrix
-import random
+import cv2
 import mlflow
 import sys, os, datetime, time
 from typing import Dict
 import json
+import random
+#Imports from solution
 from UNet import UNet
 from preprocessing import prep_cv as prep
 import utils
@@ -24,13 +25,14 @@ np.random.seed(params['seed'])
 tf.random.set_seed(params['seed'])
 
 #HYPERPARAMETERS
-IMAGE_SIZE = 128
+IMAGE_SIZE = 256
 TRAIN_PATH = 'src/models/'
-EPOCHS = 1
+EPOCHS = 100
 BATCH_SIZE = 8
 DATASET_SIZE = 2694 #Number of datapoints 
-FEATURE_CHANNELS = [16, 32,64,128,256] #Number of feature channels at each floor of the UNet structure
+FEATURE_CHANNELS = [32,64,128,256, 512] #Number of feature channels at each floor of the UNet structure
 LOG_DIRECTORY = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+DATA_DIRECTIORY = 'npy_datasets/cv_data/'
 
 
 class Trainer:
@@ -108,7 +110,7 @@ class Trainer:
 
     def __load_data_into_dict(self) -> None:
         '''Fetch data from numpy tables and create dictionary with train, val, test data'''
-        dir = 'npy_datasets/cv_data128/'
+        dir = DATA_DIRECTIORY
         self.data = {}
         self.data['train_images'] =  np.load(dir + 'cv_train_images.npy')
         self.data['train_masks'] = np.load(dir + 'cv_train_masks.npy')
@@ -314,6 +316,8 @@ class Trainer:
         test_accuracy = (tp + tn) / (tp + tn + fp + fn) 
         test_dsc = 2*tp / (2*tp + fp + fn) 
         test_jaccard_score = test_jacc_sum / len(results)
+        test_precision = tp / (tp + fp)
+
 
 
         mean_jaccard_index = jacc_sum / len(results)
@@ -322,6 +326,7 @@ class Trainer:
         print('test_sensitivity', test_sensitivity)
         print('test_specifitivity', test_specifitivity)
         print('test_accuracy', test_accuracy)
+        print('test_precision', test_precision)
         print('test_jaccard_score', test_jaccard_score)
         print('test_dicecoef', test_dsc)
         print('isic_eval_score', test_jacc_above_thresh / len(results))
@@ -332,10 +337,11 @@ class Trainer:
         mlflow.log_metric('test_specifitivity', test_specifitivity)
         mlflow.log_metric('test_accuracy', test_accuracy)
         mlflow.log_metric('test_jaccard_score', test_jaccard_score)
+        mlflow.log_metric('test_precision', test_precision)
         mlflow.log_metric('test_dicecoef', test_dsc)
         mlflow.log_metric('isic_eval_score', test_jacc_above_thresh / len(results))
 
-    def load_prep_settings_from_string(self, settings):
+    def load_prep_settings_from_string(self, settings) -> None:
         '''Load preprocessing parameters from config string. 
         String should contain keywords such as BS, AUG, GAUS etc.'''
 
@@ -351,17 +357,19 @@ class Trainer:
             self.preprocessing_parameters['zca_whitening'] = True 
         if 'GAUS' in settings: 
             self.preprocessing_parameters['gaussian_blur'] = True 
-        
 
-def run_training_from_config():
-    file = open('runs_config.json', 'r') 
+
+def run_training_from_config(config_filename='runs_config.json'):
+    '''Run training session with configuration settings from json file.'''
+    print(f'Training will be performed based on {config_filename} settings')
+    file = open(config_filename, 'r') 
     d = json.load(file)
 
     for i, run in enumerate(d['runs']):
-        
         print('-------------------------------------------------------------')
         print(f'Run number {i}, name: {run}')
         print('-------------------------------------------------------------')
+        mlflow.start_run(run_name=run+'-lesion_dataset')
 
         tr = Trainer()
         tr.load_prep_settings_from_string(run)
@@ -374,7 +382,9 @@ def run_training_from_config():
 
         mlflow.end_run()
     
+        
     print('All runs from config have been executed.')
+
 
 if __name__ == '__main__':
     run_training_from_config()

@@ -1,7 +1,6 @@
 from typing import Any, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.lib.type_check import imag
 import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from preprocessing.preprocessor import Preprocessor
@@ -9,13 +8,6 @@ from PIL import Image
 from tensorflow.keras.preprocessing.image import ImageDataGenerator 
 
 #PREPROCESSING
-def split_train_test(images, masks, validation_split=0.8):
-    # np.random.seed(1)
-    # mat = np.random.choice(a=[False, True], size=(len(images)), p=[validation_split, 1-validation_split])
-    # return images[~mat], masks[~mat], images[mat], masks[mat]
-    idx = int(len(images) * validation_split)
-    return images[0:idx], masks[0:idx], images[idx:], masks[idx:]
-
 def normalize( images, masks):
     images = images / 255
     masks = (masks > 0).astype(float)
@@ -107,6 +99,7 @@ def mean_iou(y_true, y_pred):
     union = tf.reduce_sum(y_true, axis=[1, 2, 3]) + tf.reduce_sum(y_pred, axis=[1, 2, 3])
     smooth = tf.ones(tf.shape(intersect))
     return tf.reduce_mean((intersect + smooth) / (union - intersect + smooth))
+
 
 if __name__ == '__main__':
 

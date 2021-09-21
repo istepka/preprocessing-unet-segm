@@ -40,16 +40,15 @@
 ## Image segmentation  
 Segmentation is performed using U-Net Convolutional Neural Network. 
 
-### Best result yet is test ACC 93.7%, AuC 97.9%, PRECISION 86.6%
+### Best results on the test set are: Accuracy 95.1%, Jaccard score 80.8%, Sensitivity 86.8%, Specifitivity 97.4%
 With parameters:
 - image size: 256x256
 - batch size: 8
-- epochs: 49 (Early Stopping patience=10)
-- dataset samples: 2694
+- epochs: 70 (Early Stopping patience=10)
 - feature channels configuration: [32,64,128,256,512]
 - optimizer: adam
 - loss: binary_crossentropy
-- preprocessing: [augumentation, gaussian blur (r=2), histogram equalization (0.02), per-channel normalization]
+- preprocessing: [per-channel normalization]
 
 ***
 ## References  

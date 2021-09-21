@@ -26,7 +26,7 @@ def predict_showcase():
 
     trainer.model.load_weights('src/models/UNet_model_256x256_01092021-192013.h5')
 
-    result = trainer.model.predict(trainer.valid_iterator.__next__())
+    result = trainer.model.predict(trainer.data['test_images'])
 
     r = 1
     res = (result > 0.25).astype(float)
@@ -36,7 +36,7 @@ def predict_showcase():
     fig.subplots_adjust(hspace=0.4, wspace=0.4)
     ax = fig.add_subplot(1,2,1)
     ax.set_title('Ground truth')
-    ax.imshow(trainer.test_mask_iterator.__next__(), cmap='gray')
+    ax.imshow(trainer.data['test_masks'][r], cmap='gray')
 
 
     ax1 = fig.add_subplot(1,2,2)
@@ -49,7 +49,7 @@ def predict_showcase():
 if __name__ == '__main__':
     #predict_showcase()
 
-    images = np.load('npy_datasets/cv_train_images.npy')
+    images = np.load('npy_datasets/cv_data/cv_train_images.npy')
     print(images.shape)
     # img, mask = images[0][0], images[1][0]
 
