@@ -5,7 +5,7 @@ from sklearn.metrics import jaccard_score, confusion_matrix
 import cv2
 import mlflow
 import sys, os, datetime, time
-from typing import Dict
+from typing import Dict, Tuple
 import json
 import random
 #Imports from solution
@@ -24,40 +24,57 @@ random.seed(params['seed'])
 np.random.seed(params['seed'])
 tf.random.set_seed(params['seed'])
 
-#HYPERPARAMETERS
-IMAGE_SIZE = 256
-TRAIN_PATH = 'src/models/'
-EPOCHS = 100
-BATCH_SIZE = 8
-DATASET_SIZE = 2694 #Number of datapoints 
-FEATURE_CHANNELS = [32,64,128,256, 512] #Number of feature channels at each floor of the UNet structure
-LOG_DIRECTORY = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-DATA_DIRECTIORY = 'npy_datasets/cv_data/'
 
 
 class Trainer:
     '''Tensorflow model trainer.'''
 
-    def __init__(self, debug_mode = False) -> None:
+    def __init__(self, debug_mode = False, 
+        epochs=100, 
+        batch_size=8,
+        feature_channels=[32,64,128,256, 512], 
+        data_directory='npy_datasets/cv_data/', 
+        log_directory= 'logs/fit/',
+        model_directory='src/models/',
+        preprocessing_params={}, 
+        augumentation_parameters={}
+        ) -> None:
+
         #Base properties
         self.model = None
-        self.debug_mode = debug_mode
+        self.mlflow = False
         self.input_shape = (1,)
+        
+        self.debug_mode = debug_mode
+        self.epochs = epochs 
+        self.batch_size = batch_size
+        self.feature_channels = feature_channels
+        self.log_dir = log_directory + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.model_dir = model_directory
+        self.data_dir = data_directory
+
+        #Parameters
         self.augument = {
-            'rotation_range': 10,
+            'rotation_range': 30,
             'zoom_range': 0.1,
             'width_shift_range': 0.1,
             'height_shift_range': 0.1,
+            'fill_mode': 'constant',
+            'cval': 0.0,
+            'shear_range': 0.2,
             'horizontal_flip':True,
-            'vertical_flip': True,
+            'vertical_flip': True
         }
         self.augument_mask = {
-            'rotation_range': 10,
+            'rotation_range': 30,
             'zoom_range': 0.1,
             'width_shift_range': 0.1,
             'height_shift_range': 0.1,
+            'fill_mode': 'constant',
+            'cval': 0.0,
+            'shear_range': 0.2,
             'horizontal_flip':True,
-            'vertical_flip': True,
+            'vertical_flip': True
         }
         self.preprocessing_parameters = {
             'augumentation': False,
@@ -72,10 +89,21 @@ class Trainer:
             'gaussian_blur_radius': 2,
             'zca_whitening': False,
             'connected_components': False
-        } #By default all preprocessings are disabled except 0-1 normalization
+        } 
        
+
+        for key, value in preprocessing_params.items():
+            self.preprocessing_parameters[key] = value
+
+        for key, value in augumentation_parameters.items():
+            self.augument[key] = value
+            self.augument_mask[key] = value
+
+
+
+
         #Callbacks init
-        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=LOG_DIRECTORY, histogram_freq=1)    
+        self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.log_dir, histogram_freq=1)    
         self.early_stopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=14, restore_best_weights=True, verbose=1)
         
         self.callbacks = [
@@ -92,25 +120,26 @@ class Trainer:
             tf.keras.metrics.Precision(),
             tf.keras.metrics.AUC(),
             tf.keras.metrics.Recall(),
+            #tf.keras.metrics.MeanIoU(num_classes=2)
         ]
 
-        #Mlflow start
-        self.__init_log_parameters()
-            
-    def __init_log_parameters(self) -> None:
+    def mlflow_run_logs(self, run_name) -> None:
         '''Initialize mlflow, and add some log parameters'''
+        mlflow.start_run(run_name=run_name)
         mlflow.tensorflow.autolog()
-        mlflow.log_param('FEATURE_CHANNELS', FEATURE_CHANNELS)
-        mlflow.log_param('IMAGE_SIZE', IMAGE_SIZE)
-       
-        if self.debug_mode == False:
-            mlflow.log_params(params)
-            mlflow.log_params(self.augument)
-            mlflow.log_params(self.preprocessing_parameters)
+        mlflow.log_param('Feature channels', self.feature_channels)
+        mlflow.log_params(params)
+        mlflow.log_params(self.augument)
+        mlflow.log_params(self.preprocessing_parameters)
+
+        self.mlflow = True  
+    
+    def mlflow_stop_logs(self) -> None:
+        mlflow.end_run()
 
     def __load_data_into_dict(self) -> None:
         '''Fetch data from numpy tables and create dictionary with train, val, test data'''
-        dir = DATA_DIRECTIORY
+        dir = self.data_dir
         self.data = {}
         self.data['train_images'] =  np.load(dir + 'cv_train_images.npy')
         self.data['train_masks'] = np.load(dir + 'cv_train_masks.npy')
@@ -119,7 +148,16 @@ class Trainer:
         self.data['test_images'] =  np.load(dir + 'cv_test_images.npy')
         self.data['test_masks'] =  np.load(dir + 'cv_test_masks.npy')
 
+        if self.mlflow:
+            mlflow.log_param('Training set shape', self.data['train_images'].shape)
+            mlflow.log_param('Validation set shape', self.data['val_images'].shape)
+            mlflow.log_param('Test set shape', self.data['test_images'].shape)
+
+        self.image_size = self.data['test_images'].shape[2]
+
         print('Training set shape: ', self.data['train_images'].shape)
+        print('Validation set shape', self.data['val_images'].shape)
+        print('Test set shape', self.data['test_images'].shape)
 
     def __apply_preprocessings(self) -> None:
         '''Apply preprocessings based on parameters contained in preprocessing_parameters dictionary'''
@@ -210,13 +248,13 @@ class Trainer:
             validdatagen = ImageDataGenerator()
 
             #Initialize flow and zip it to format proper to fit() function 
-            image_iterator = datagen.flow(self.data['train_images'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-            mask_iterator = maskdatagen.flow(self.data['train_masks'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            image_iterator = datagen.flow(self.data['train_images'], batch_size=self.batch_size, shuffle=params['shuffle'], seed=params['seed'])
+            mask_iterator = maskdatagen.flow(self.data['train_masks'], batch_size=self.batch_size, shuffle=params['shuffle'], seed=params['seed'])
             self.train_iterator = zip(image_iterator, mask_iterator)
             self.train_steps = len(image_iterator)
 
-            valid_image_iterator = validdatagen.flow(self.data['val_images'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
-            valid_mask_iterator = validdatagen.flow(self.data['val_masks'], batch_size=BATCH_SIZE, shuffle=params['shuffle'], seed=params['seed'])
+            valid_image_iterator = validdatagen.flow(self.data['val_images'], batch_size=self.batch_size, shuffle=params['shuffle'], seed=params['seed'])
+            valid_mask_iterator = validdatagen.flow(self.data['val_masks'], batch_size=self.batch_size, shuffle=params['shuffle'], seed=params['seed'])
             self.valid_iterator = zip(valid_image_iterator, valid_mask_iterator)
             self.valid_steps = len(valid_image_iterator)
 
@@ -227,7 +265,7 @@ class Trainer:
         '''Build and compile tf model structure from custom UNet architecture.\n
         Return: model summary'''
         with tf.device('/device:GPU:0'):
-            self.model = UNet(FEATURE_CHANNELS, IMAGE_SIZE, self.input_shape[-1])  
+            self.model = UNet(self.feature_channels, self.image_size, self.input_shape[-1])  
             
             self.model.compile(
                 optimizer=self.optimizer, 
@@ -244,7 +282,7 @@ class Trainer:
             self.model.fit(
                 self.train_iterator,
                 steps_per_epoch=self.train_steps ,
-                epochs=EPOCHS, 
+                epochs=self.epochs, 
                 validation_steps=self.valid_steps,
                 validation_data=self.valid_iterator,
                 callbacks=self.callbacks
@@ -254,15 +292,17 @@ class Trainer:
         '''Save model weights into h5 format. \n
         Return: path to model.''' 
         timestamp = time.strftime(r"%d%m%Y-%H%M%S")
-        path = f'{TRAIN_PATH}UNet_model_{IMAGE_SIZE}x{IMAGE_SIZE}_{timestamp}.h5'
+        path = f'{self.model_dir}UNet_model_{self.image_size}x{self.image_size}_{timestamp}.h5'
 
         try:
             self.model.save_weights(path)
         except:
             print('Saved models directiory created')
-            os.mkdir(f'./{TRAIN_PATH}')
+            os.mkdir(f'./{self.model_dir}')
 
-        mlflow.log_param('Saved Model Name', path)
+        if self.mlflow:
+            mlflow.log_param('Saved Model Name', path)
+
         print('Model weights saved: ' + path)
         return path
 
@@ -272,14 +312,16 @@ class Trainer:
             x=self.data['test_images'], 
             y=self.data['test_masks'], 
             verbose=1, 
-            batch_size=BATCH_SIZE
+            batch_size=self.batch_size
             )
 
-        mlflow.log_param('Test performance',list(zip(self.model.metrics_names,res )))
+        if self.mlflow:
+            mlflow.log_param('Test performance',list(zip(self.model.metrics_names,res )))
 
-    def test_model_additional_metrics(self) -> None:
+    def test_model_additional_metrics(self) -> np.array:
         '''Test model for additional metrics: 
-        sensitivity, specifitivity, jaccard index, isic score, dice.'''
+        sensitivity, specifitivity, jaccard index, isic score, dice.\n
+        Return: `test_accuracy, test_jaccard_score, test_precision, test_sensitivity, test_specifitivity`'''
         results = self.model.predict(self.data['test_images'])
 
         jacc_sum = tn = tp = fp = fn = test_jacc_sum = test_jacc_above_thresh= 0
@@ -288,7 +330,7 @@ class Trainer:
             
             d = mask > 0.5
             _, r = cv2.threshold( np.array(r*255, dtype='uint8'), 0, 255, cv2.THRESH_OTSU)
-            r = (r / 255) > 0.5
+            r = (r/255 ) > 0.5
 
             r = r.flatten()
             d = d.flatten()
@@ -332,14 +374,17 @@ class Trainer:
         print('isic_eval_score', test_jacc_above_thresh / len(results))
         print('---------------TEST METRICS----------------------')
 
-        mlflow.log_metric('jaccard_index', mean_jaccard_index)
-        mlflow.log_metric('test_sensitivity', test_sensitivity)
-        mlflow.log_metric('test_specifitivity', test_specifitivity)
-        mlflow.log_metric('test_accuracy', test_accuracy)
-        mlflow.log_metric('test_jaccard_score', test_jaccard_score)
-        mlflow.log_metric('test_precision', test_precision)
-        mlflow.log_metric('test_dicecoef', test_dsc)
-        mlflow.log_metric('isic_eval_score', test_jacc_above_thresh / len(results))
+        if self.mlflow:
+            mlflow.log_metric('jaccard_index', mean_jaccard_index)
+            mlflow.log_metric('test_sensitivity', test_sensitivity)
+            mlflow.log_metric('test_specifitivity', test_specifitivity)
+            mlflow.log_metric('test_accuracy', test_accuracy)
+            mlflow.log_metric('test_jaccard_score', test_jaccard_score)
+            mlflow.log_metric('test_precision', test_precision)
+            mlflow.log_metric('test_dicecoef', test_dsc)
+            mlflow.log_metric('isic_eval_score', test_jacc_above_thresh / len(results))
+
+        return np.array( [test_accuracy, test_jaccard_score, test_precision, test_sensitivity, test_specifitivity], dtype=np.float)
 
     def load_prep_settings_from_string(self, settings) -> None:
         '''Load preprocessing parameters from config string. 
@@ -369,7 +414,7 @@ def run_training_from_config(config_filename='runs_config.json'):
         print('-------------------------------------------------------------')
         print(f'Run number {i}, name: {run}')
         print('-------------------------------------------------------------')
-        mlflow.start_run(run_name=run+'-lesion_dataset')
+        mlflow.start_run(run_name=run)
 
         tr = Trainer()
         tr.load_prep_settings_from_string(run)
@@ -381,10 +426,33 @@ def run_training_from_config(config_filename='runs_config.json'):
         tr.save()
 
         mlflow.end_run()
+       
     
         
     print('All runs from config have been executed.')
 
+
+def run_training_from_string(run_name):
+   
+    print('-------------------------------------------------------------')
+    print(f'Run name: {run_name}')
+    print('-------------------------------------------------------------')
+    mlflow.start_run(run_name=run_name)
+
+    tr = Trainer()
+    
+    tr.load_data()
+    tr.build_model()
+    tr.train()
+    tr.evaluate()
+    tr.test_model_additional_metrics()
+    tr.save()
+
+    mlflow.end_run()
+       
+    
+        
+    print('All runs from config have been executed.')
 
 if __name__ == '__main__':
     run_training_from_config()

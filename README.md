@@ -2,6 +2,22 @@
 ### Based on the ISIC 2018 challenge which goal was to create automated predictions of lesion segmentation boundaries within dermoscopic images.
 ![img](src/overview_readme.png)
 ***
+
+## Image segmentation  
+Segmentation is performed using U-Net Convolutional Neural Network. 
+
+### Best results on the test set are: Accuracy 95.1%, Jaccard score 80.8%, Sensitivity 86.8%, Specifitivity 97.4%
+With parameters:
+- image size: 256x256
+- batch size: 8
+- epochs: 70 (Early Stopping patience=10)
+- feature channels configuration: [32,64,128,256,512]
+- optimizer: adam
+- loss: binary_crossentropy
+- preprocessing: [per-channel normalization]
+
+***
+
 ## Image Pre-Processing
 ### Challenges:
 * vignette
@@ -12,13 +28,10 @@
 * hair
 
 ### Common techniques
-* adding 20-pixel border (U-net loss of border pixels)
 * color space transformation, grayscale convertion
 * contrast enchancement, histogram equalization
-* artifact removal
 * per-channel mean normalization
 * gaussian blur
-* watershed algorithm
 * data augumentation (horiz/vert flip, zoom, rotation, offset)
 * ZCA
 * connected components
@@ -36,19 +49,6 @@
 
 
 
-***
-## Image segmentation  
-Segmentation is performed using U-Net Convolutional Neural Network. 
-
-### Best results on the test set are: Accuracy 95.1%, Jaccard score 80.8%, Sensitivity 86.8%, Specifitivity 97.4%
-With parameters:
-- image size: 256x256
-- batch size: 8
-- epochs: 70 (Early Stopping patience=10)
-- feature channels configuration: [32,64,128,256,512]
-- optimizer: adam
-- loss: binary_crossentropy
-- preprocessing: [per-channel normalization]
 
 ***
 ## References  
