@@ -12,12 +12,12 @@ temp/
 unused/
 *.h5*
 mlruns/
-*.txt
+
 logs/
 tmp*
 note.md
 simplified.csv
 simple_predict.ipynb 
-*.csv
+analysis/
 */cv_data/
 assumptioons.md

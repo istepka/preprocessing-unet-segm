@@ -1,0 +1,19 @@
+Name,Accuracy,Jaccard index,Precision,Sensitivity,Specifitivity
+Baseline - lesion,0.944458982,0.779774375,0.896285079,0.850081216,0.971639622
+Baseline + Augumentations - lesion,0.946251637,0.793191609,0.896967105,0.858301836,0.971581033
+Baseline + Histogram Equalization - lesion,0.944895607,0.786504647,0.885278706,0.866074293,0.967596014
+Baseline + Per Channel Normalization - lesion,0.945289233,0.787252544,0.89149599,0.860267355,0.969775393
+Baseline + Gaussian Blur - lesion,0.942674768,0.769184481,0.871858396,0.872691008,0.962829974
+Baseline + Augumentations + Histogram Equalization - lesion,0.945642151,0.787232138,0.879178484,0.878922396,0.96485733
+Baseline + Augumentations + Per Channel Normalization - lesion,0.946733028,0.787594374,0.901841595,0.854944879,0.973167863
+Baseline + Augumentations + Gaussian Blur - lesion,0.943737526,0.773822182,0.87648809,0.87132159,0.964593195
+Baseline + Augumentations + Histogram Equalization + Per Channel Normalization - lesion,0.948208459,0.79116835,0.882909173,0.886050838,0.966109751
+Baseline - bacteria,0.968454432,0.820435103,0.897800502,0.909203835,0.979936383
+Baseline + Augumentations - bacteria,0.972736161,0.839187807,0.89787167,0.938936097,0.979286148
+Baseline + Histogram Equalization - bacteria,0.969340911,0.826637144,0.887047928,0.929769445,0.977009317
+Baseline + Per Channel Normalization - bacteria,0.970132107,0.830459362,0.885973095,0.93661606,0.976627056
+Baseline + Gaussian Blur - bacteria,0.967538565,0.814025762,0.88003158,0.926327685,0.975524667
+Baseline + Augumentations + Histogram Equalization - bacteria,0.971309634,0.834953283,0.894523384,0.933535675,0.978629707
+Baseline + Augumentations + Per Channel Normalization - bacteria,0.97179961,0.834065714,0.898685735,0.931321474,0.979643716
+Baseline + Augumentations + Gaussian Blur - bacteria,0.96974736,0.826581549,0.887256323,0.932578973,0.976950082
+Baseline + Augumentations + Histogram Equalization + Per Channel Normalization - bacteria,0.97268835,0.836058019,0.906013071,0.928029417,0.981342637
