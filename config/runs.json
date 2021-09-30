@@ -54,14 +54,5 @@
             "histogram_equalization": true,
             "per_channel_normalization": true
         }
-    },
-    {
-        "run_name": "Baseline + Augumentations + Histogram Equalization + Per Channel Normalization + Gaussian Blur",
-        "prep_params": {
-            "augumentation": true,
-            "histogram_equalization": true,
-            "per_channel_normalization": true,
-            "gaussian_blur": true
-        }
     }
 ]

@@ -21,3 +21,8 @@ simple_predict.ipynb
 analysis/
 */cv_data/
 assumptioons.md
+*csv 
+npy_datasets/
+*txt
+*paper_data/
+*xlsx
