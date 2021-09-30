@@ -14,7 +14,7 @@ With parameters:
 - feature channels configuration: [32,64,128,256,512]
 - optimizer: adam
 - loss: binary_crossentropy
-- preprocessing: [per-channel normalization]
+- preprocessing: [augumentations, histogram equalization, per-channel normalization]
 
 ***
 
