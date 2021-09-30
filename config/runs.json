@@ -1,58 +1,27 @@
-[
-    {
-        "run_name": "Baseline",
-        "prep_params": {}
-    },
-    {
-        "run_name": "Baseline + Augumentations",
-        "prep_params": {
-            "augumentation": true
+{
+    "directiories": [
+        "npy_datasets/new_bacteria/",
+        "npy_datasets/new_lesion/"
+    ],
+    "resolution": 256,
+    "repeats": 3,
+    "epochs": 100,
+    "batch_size": 8,
+    "out_csv_name": "benchmark.csv",
+    "runs": [
+        {
+            "run_name": "Baseline + Aug + Heq",
+            "prep_params": {
+                "augumentation": true,
+                "histogram_equalization": true
+            }
+        },
+        {
+            "run_name": "Baseline + Aug + Heq",
+            "prep_params": {
+                "augumentation": true,
+                "histogram_equalization": true
+            }
         }
-    },
-    {
-        "run_name": "Baseline + Histogram Equalization",
-        "prep_params": {
-            "histogram_equalization": true
-        }
-    },
-    {
-        "run_name": "Baseline + Per Channel Normalization",
-        "prep_params": {
-            "per_channel_normalization": true
-        }
-    }, {
-        "run_name": "Baseline + Gaussian Blur",
-        "prep_params": {
-            "per_channel_normalization": true,
-            "gaussian_blur": true
-        }
-    },
-    {
-        "run_name": "Baseline + Augumentations + Histogram Equalization",
-        "prep_params": {
-            "histogram_equalization": true,
-            "augumentation": true
-        }
-    },
-    {
-        "run_name": "Baseline + Augumentations + Per Channel Normalization",
-        "prep_params": {
-            "augumentation": true,
-            "per_channel_normalization": true
-        }
-    },{
-        "run_name": "Baseline + Augumentations + Gaussian Blur",
-        "prep_params": {
-            "augumentation": true,
-            "gaussian_blur": true
-        }
-    },
-    {
-        "run_name": "Baseline + Augumentations + Histogram Equalization + Per Channel Normalization",
-        "prep_params": {
-            "augumentation": true,
-            "histogram_equalization": true,
-            "per_channel_normalization": true
-        }
-    }
-]
+    ]
+}

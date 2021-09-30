@@ -26,3 +26,4 @@ npy_datasets/
 *txt
 *paper_data/
 *xlsx
+from_scratch.py
