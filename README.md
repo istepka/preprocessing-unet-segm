@@ -6,7 +6,7 @@
 ## Image segmentation  
 Segmentation is performed using U-Net Convolutional Neural Network. 
 
-### Best results on the test set are: Accuracy 95.1%, Jaccard score 80.8%, Sensitivity 86.8%, Specifitivity 97.4%
+### Best achieved results (test set): Accuracy 95.1%, Jaccard score 80.8%, Sensitivity 86.8%, Specifitivity 97.4%
 With parameters:
 - image size: 256x256
 - batch size: 8
@@ -18,35 +18,42 @@ With parameters:
 
 ***
 
-## Image Pre-Processing
-### Challenges:
-* vignette
-* ink markings
-* scale rulers
-* skin lines
-* blood vessels
-* hair
+## How to get started
 
-### Common techniques
-* color space transformation, grayscale convertion
-* contrast enchancement, histogram equalization
-* per-channel mean normalization
-* gaussian blur
-* data augumentation (horiz/vert flip, zoom, rotation, offset)
-* ZCA
-* connected components
+### Dataset
+Data can be downloaded from the official site of the ISIC2018 challenge:  https://challenge2018.isic-archive.com/participate/
+
+### Training
+1. Download data from the official site (alternatively you can use uploaded `npy_datasets/data/`)
+1. Run `dataset_creator.py` and pass image paths as the function arguments
+1. Adjust runs.json config file to your needs
+1. Use `run_training_from_config` from `train_interface.py`
+1. After training is completed, you can use `predict.py` to predict masks based on saved model 
+
+### Predicting on pre-trained 
+If you just want to do a predictions on your images, go to `predict.py` and with the default setting you should be able to feed your data into predict function and get your results.  
 
 
-### Pre-processings currently implemented
-1. Resize image to a constant computable dimension (e.g. 512x512)  
-1. Convert image to grayscale to reduce image dimension and match format of orginal U-Net reference  
-1. Contrast enchancement  
-    This ensures images have consistent contrast between neighbouring areas and RoI. It will be accomplished by first calculating the histogram of grayscale image. The top 2% of histogram intensities were then selected and used as cut off values. Histogram then stretches to remap the darkest pixel to 0 and lightest to 255 against the selected cut off thresholds.  
-1. Per-channel mean normalization
-1. Data augumentation 
-1. ZCA whitening
-1. Connected components
+###  Environment requirements
+- python >= 3.8
+- tensorflow >= 2.4
+- numpy
+- Pillow
+- scikit-learn
+- opencv
+- mlflow
+- matplotlib
+- pandas
 
+
+
+***
+
+## Preprocessings
+
+Research focused on preprocessing methods, which were: Augumentations, Histogram Equalization, Per-channel mean normalization, Gaussian Blur, ZCA whitening, Connected components.
+
+Through research, an optimal set of methods has been identified and UNet model combined with those methods is capable of obtaining Jaccard index value around 81%.
 
 
 
