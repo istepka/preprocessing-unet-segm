@@ -1,11 +1,11 @@
 from typing import Tuple
 from PIL import Image, ImageFilter, ImageOps, ImageStat
 import numpy as np
-import sys, os
+import os
 
 
 class Preprocessor:
-    '''Image preprocessing'''
+    '''Image preprocessing class'''
 
     def __init__(self, img: Image) -> None:
         self.img = img.copy()
@@ -13,18 +13,13 @@ class Preprocessor:
 
     def autopreprocess(self) -> None:
         '''Execute whole preprocessing sequence over an image'''
-        self.__normalize()
         self.convert_to_grayscale()
-        self.remove_vignette()
-        self.remove_hair()
+        #self.remove_vignette()
+        #self.remove_hair()
         self.resize()
         self.hist_enchance_contrast()
         self.apply_gaussian_blur()
-        self.add_border()
-    
-    def __normalize(self) -> None:
-        if self.img.max() > 1 : 
-            self.img = self.img / 255
+        #self.add_border()
 
     def resize(self, target_resolution: Tuple[int, int] = (512,512)) -> None:
         '''Resize image to target resolution'''
@@ -56,7 +51,7 @@ class Preprocessor:
         #TODO
         pass
 
-    def apply_gaussian_blur(self, radius=3) -> None:
+    def apply_gaussian_blur(self, radius: int=3) -> None:
         '''Apply gaussian blur'''
         self.img = self.img.filter(ImageFilter.GaussianBlur(radius=radius))
     
@@ -100,25 +95,15 @@ class Preprocessor:
                 self.img = source_image
                 break 
     
-    def get_processed_np_img(self, normalized=True) -> np.array:
+    def get_processed_np_img(self, normalized: bool=True) -> np.array:
+        '''Obtain Image as a numpy array'''
         if normalized:
             return np.asarray(self.img.getdata()).reshape(self.img.size[1], self.img.size[0], -1) /255
         else:
             return np.asarray(self.img.getdata()).reshape(self.img.size[1], self.img.size[0], -1) 
 
     def save(self, name: str, path: str="./src/data/temp/") -> None:
+        '''Save Image to path'''
         if not os.path.exists(path):
             os.makedirs(path)
         self.img.save(path + name)
-
-
-class Prep:
-
-    def __init__(self, image_array: np.array) -> None:
-        self.image_arr = image_array
-
-
-        for im in self.image_arr:
-            Preprocessor(im).hist_enchance_contrast()
-    
-

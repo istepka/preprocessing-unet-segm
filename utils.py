@@ -1,14 +1,14 @@
 from typing import Any, Tuple
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 from preprocessing.preprocessor import Preprocessor
 from PIL import Image
 from tensorflow.keras.preprocessing.image import ImageDataGenerator 
+import matplotlib.pyplot as plt
 
 #PREPROCESSING
-def normalize( images, masks):
+def normalize(images, masks):
     images = images / 255
     masks = (masks > 0).astype(float)
     return images, masks
@@ -47,22 +47,6 @@ def apply_zca_normalization(images, fit_dataset=None) -> Any:
 
     return images
 
-#DISPLAY
-def display_pair(image1, image2, title1='', title2=''):
-   
-    fig = plt.figure()
-    fig.subplots_adjust(hspace=0.4, wspace=0.4)
-    ax = fig.add_subplot(1,2,1)
-    ax.set_title(title1)
-    ax.imshow(image1, cmap='gray')
-
-    ax1 = fig.add_subplot(1,2,2)
-    ax1.set_title(title2)
-    ax1.imshow(image2, cmap='gray')
-
-
-    plt.show()
-
 #FUNCTIONS
 def iou(y_true, y_pred):
     y_pred = tf.cast(y_pred > 0.5, tf.bool)
@@ -74,13 +58,6 @@ def iou(y_true, y_pred):
 
 def auroc(y_true, y_pred):
     return tf.py_function(roc_auc_score, (y_true, y_pred), tf.double)
-
-def jaccard_distance(y_true, y_pred, smooth=100):
-    with tf.device('/device:GPU:0'):
-        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true * y_pred), axis=-1)
-        sum_ = tf.keras.backend.sum(tf.keras.backend.square(y_true), axis = -1) + tf.keras.backend.sum(tf.keras.backend.square(y_pred), axis=-1)
-        jac = (intersection + smooth) / (sum_ - intersection + smooth)
-    return (1 - jac)
 
 def jaccard_index(y_true, y_pred, smooth=0.0001):
     with tf.device('/device:GPU:0'):
@@ -100,18 +77,18 @@ def mean_iou(y_true, y_pred):
     smooth = tf.ones(tf.shape(intersect))
     return tf.reduce_mean((intersect + smooth) / (union - intersect + smooth))
 
+#UTILITIES
+def display(images, rows=1):
+    fig = plt.figure(figsize=(8, 8))
+    columns = len(images)
 
-if __name__ == '__main__':
+    for i in range(1, len(images)+1):
+        fig.add_subplot(rows, columns, i)
 
-    train_img = np.load('npy_datasets/cv_test_images.npy')
-
-    t,_=normalize(train_img, train_img)
-
-    print(t.shape)
-    print(t.max())
-    print(t.min())
-
-  
-    
-
+        if len(images[i-1].shape) > 3: 
+            images[i-1] = np.reshape(images[i-1], (256,256,1))
+        
+        plt.imshow(images[i-1], cmap='gray')
+        
+    plt.show()
     

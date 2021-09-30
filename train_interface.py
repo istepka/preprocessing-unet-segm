@@ -1,5 +1,5 @@
 from numpy.core.records import array
-from train_gpu import Trainer
+from train import Trainer
 import json, csv
 import numpy as np
 
@@ -55,7 +55,7 @@ def run_training_from_config(config_file='config/runs.json') -> str:
 
             for rep in range(repeats):
                 print('-'*25)
-                print(f'Rep: {i}')
+                print(f'Rep: {rep}')
                 print('-'*25)
 
                 trainer = Trainer(

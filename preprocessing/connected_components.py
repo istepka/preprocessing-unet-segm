@@ -1,6 +1,9 @@
+#-------------------------------
+#Overview of connected components method
+#------------------------------
 import cv2 
 import numpy as np
-from preprocessing.preprocessor import Preprocessor
+from preprocessor import Preprocessor
 from PIL import Image
 
 path_to_image = 'src/data/raw_img/images/ISIC_0000043.jpg'
