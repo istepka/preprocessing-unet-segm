@@ -3,7 +3,8 @@
 ![img](src/overview_readme.png)
 ***
 ## Research report
-This is my research report on the impact that different preprocessing techniques have on the model's final performence. Written in PL. [document](src/Segmentacja - badanie skuteczności wybranych metod wstępnego przetwarzania obrazu.pdf)
+This is my research report on the impact that different preprocessing techniques have on the model's final performence. Written in PL.
+[Document link](https://github.com/Iggyyy/Lesion-boundary-segmentation/blob/main/src/Segmentacja%20-%20badanie%20skuteczno%C5%9Bci%20wybranych%20metod%20wst%C4%99pnego%20przetwarzania%20obrazu.pdf)
 
 ## Image segmentation  
 Segmentation is performed using U-Net Convolutional Neural Network. 
