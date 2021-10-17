@@ -2,6 +2,8 @@
 ### Based on the ISIC 2018 challenge which goal was to create automated predictions of lesion segmentation boundaries within dermoscopic images.
 ![img](src/overview_readme.png)
 ***
+## Research report
+This is my research report on the impact that different preprocessing techniques have on the model's final performence. Written in PL. [document](src/Segmentacja - badanie skuteczności wybranych metod wstępnego przetwarzania obrazu.pdf)
 
 ## Image segmentation  
 Segmentation is performed using U-Net Convolutional Neural Network. 
